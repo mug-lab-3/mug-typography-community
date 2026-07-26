@@ -1,12 +1,12 @@
-name: Work submission
-description: Submit a work to the Mug Typography gallery.
-title: "[Work] "
-labels: ["work-submission"]
+name: Gallery submission
+description: Request that your animation be added to the Mug Typography gallery.
+title: "[Gallery] "
+labels: ["gallery-submission"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for sharing your work!
+        Thanks for sharing your animation!
 
         Record your animation in the simulator with **Record**, which embeds
         the Lua source inside the resulting `.webm`. Press the camera button
@@ -23,7 +23,7 @@ body:
   - type: input
     id: title
     attributes:
-      label: Work title
+      label: Title
       description: Shown on the card in the gallery.
       placeholder: Neon Flicker
     validations:

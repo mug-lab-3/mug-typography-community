@@ -1,8 +1,8 @@
-// Validates one work submission issue and, on success, writes the files the
+// Validates one gallery submission issue and, on success, writes the files the
 // approve workflow commits.
 //
 // Usage:
-//   node scripts/validate-work.mjs <issue.json> [--emit <directory>]
+//   node scripts/validate-gallery.mjs <issue.json> [--emit <directory>]
 //
 // <issue.json> is the raw issue payload (`gh issue view --json`). Without
 // --emit this only reports; with it, the extracted script and the downloaded
@@ -219,8 +219,8 @@ function extractScriptMetadata(source) {
   };
 }
 
-// Derives the committed file's base name from the work's title, so the
-// repository reads as a list of works rather than of issue numbers. The
+// Derives the committed file's base name from the submitted title, so the
+// repository reads as a list of entries rather than of issue numbers. The
 // issue number is kept as a suffix to guarantee uniqueness.
 function buildSlug(title, issueNumber) {
   const normalized = title
@@ -228,7 +228,7 @@ function buildSlug(title, issueNumber) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 40);
-  return `${normalized === "" ? "work" : normalized}-${issueNumber}`;
+  return `${normalized === "" ? "entry" : normalized}-${issueNumber}`;
 }
 
 function main() {
@@ -237,7 +237,7 @@ function main() {
   const emitIndex = args.indexOf("--emit");
   const emitDirectory = emitIndex >= 0 ? args[emitIndex + 1] : undefined;
   if (issuePath === undefined) {
-    throw new ValidationFailure("usage: validate-work.mjs <issue.json> [--emit <directory>]");
+    throw new ValidationFailure("usage: validate-gallery.mjs <issue.json> [--emit <directory>]");
   }
 
   const issue = JSON.parse(readFileSync(issuePath, "utf8"));
@@ -245,10 +245,10 @@ function main() {
   const sections = parseIssueFormSections(body);
   const problems = [];
 
-  const submittedTitle = sectionText(sections, "Work title", "Sample title");
+  const submittedTitle = sectionText(sections, "Title", "Work title", "Sample title");
   const submittedDescription = sectionText(sections, "Description");
   if (submittedTitle === "") {
-    fail(problems, "Work title: missing.");
+    fail(problems, "Title: missing.");
   }
   if (submittedDescription === "") {
     fail(problems, "Description: missing.");
