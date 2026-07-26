@@ -57,9 +57,16 @@ function parseIssueFormSections(body) {
   return sections;
 }
 
-function sectionText(sections, label) {
-  const value = sections.get(label.toLowerCase());
-  return value === undefined || value === "_No response_" ? "" : value;
+// Accepts several headings for one field so a submission opened on an older
+// version of the issue form still validates: the body is frozen at the
+// wording that existed when it was posted, and a submitter should not have to
+// repost because the form was reworded underneath them. The first heading is
+// the current one; the rest are retired spellings.
+function sectionText(sections, ...labels) {
+  const matched = labels
+    .map((label) => sections.get(label.toLowerCase()))
+    .find((value) => value !== undefined);
+  return matched === undefined || matched === "_No response_" ? "" : matched;
 }
 
 // Attachments appear in the body as bare links, as Markdown image syntax, or
@@ -238,7 +245,7 @@ function main() {
   const sections = parseIssueFormSections(body);
   const problems = [];
 
-  const submittedTitle = sectionText(sections, "Work title");
+  const submittedTitle = sectionText(sections, "Work title", "Sample title");
   const submittedDescription = sectionText(sections, "Description");
   if (submittedTitle === "") {
     fail(problems, "Work title: missing.");
@@ -247,8 +254,8 @@ function main() {
     fail(problems, "Description: missing.");
   }
 
-  const videoUrl = findAssetUrl(sectionText(sections, "Recording"));
-  const thumbnailUrl = findAssetUrl(sectionText(sections, "Thumbnail"));
+  const videoUrl = findAssetUrl(sectionText(sections, "Recording", "Recording (.webm)"));
+  const thumbnailUrl = findAssetUrl(sectionText(sections, "Thumbnail", "Thumbnail (.png / .jpg)"));
   if (videoUrl === undefined) {
     fail(problems, "Recording: no attachment found. Drag the `.webm` file into that field.");
   }
