@@ -43,7 +43,7 @@ const entries = readdirSync(samplesDirectory)
       author: metadata.author ?? "",
       version: metadata.version ?? "",
       apiLevel: metadata.apiLevel,
-      thumbnailPath: findMediaPath(slug, [".png", ".jpg", ".jpeg"]),
+      thumbnailPath: findMediaPath(slug, [".webp", ".png", ".jpg", ".jpeg"]),
       videoPath: findMediaPath(slug, [".webm"]),
       sourceUrl: metadata.sourceUrl,
     };

@@ -49,7 +49,7 @@ body:
       label: Thumbnail (.png / .jpg)
       description: |
         The still shown on the card before playback.
-        Limits: PNG or JPEG, up to 1280x720, up to 500 KB.
+        Limits: WebP, PNG or JPEG, up to 1280x720, up to 500 KB.
       placeholder: Drag your image file here.
     validations:
       required: true
