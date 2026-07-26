@@ -9,16 +9,19 @@ Everything published here appears in the simulator's sample browser under the
 
 ## Adding yours to the gallery
 
-1. Build your animation in the simulator.
+1. Build your animation in the simulator, and put its name in the script's
+   `-- @title`.
 2. Press **Record**. The resulting `.webm` has the Lua source embedded in it,
    so the script is read back out of the recording — there is nothing to paste.
-3. Press the camera button above the preview to save a still for the card.
+3. Capture the thumbnail: the camera button above the preview saves **the
+   frame currently on screen** as the card's still, so show the moment you
+   want on the card before pressing it.
 4. Open a [new gallery
-   entry](../../issues/new?template=gallery-submission.yml) and attach both
-   files.
+   entry](../../issues/new?template=gallery-submission.yml) and attach the two
+   files — **the recording (`.webm`) and the thumbnail image**.
 
-The title you give becomes the name of your entry, so keep it in mind:
-updating or removing it later means giving the same title again.
+Your entry is named after the script's `-- @title`, so keep it in mind:
+updating or removing it later means naming it again.
 
 To fix a file before it is published, edit the issue and swap it in the field
 — files attached in a comment are not picked up.
@@ -32,23 +35,69 @@ Open a separate issue rather than editing a published one:
 - [Remove an entry](../../issues/new?template=gallery-removal.yml) — takes it
   out of the gallery. Nothing to attach.
 
-Both find the entry by your GitHub username plus the title, so the title has
-to match what was published. You can only reach your own entries: everything
-you publish lives under `gallery/<your-username>/`, and that path comes from
-who opened the issue.
+Both find the entry by your GitHub username plus its name, so the form's Title
+has to match the name it was published under. You can only reach your own
+entries: everything you publish lives under `gallery/<your-username>/`, and
+that path comes from who opened the issue.
 
-### Limits
+## Requirements
 
-| File | Format | Max size | Max resolution | Max length |
-| --- | --- | --- | --- | --- |
-| Recording | WebM | 8 MB | 1280x720 | 15 s |
-| Thumbnail | WebP, PNG or JPEG | 500 KB | 1280x720 | — |
+All of the following are checked automatically, and anything unmet is reported
+back on the issue. Problems are collected into one comment, so you can fix
+them in a single pass.
 
-Your script's own `-- @title`, `-- @version` and `--[[ @description ]]` header
-directives are used when present; the issue form fields fill in the rest.
+### Recording (`.webm`)
 
-Cards are credited to your GitHub username. Set `-- @author` only if you
-publish under a different name — it overrides the credit and nothing else.
+| Property | Requirement |
+| --- | --- |
+| Format | WebM |
+| File size | up to 8 MB |
+| Resolution | up to 1280x720 |
+| Length | up to 15 seconds |
+| Script | Lua source embedded in the file |
+
+The simulator's **Record** satisfies all of these on its own, resolution
+included, since a scene starts out 1280x720. A video made with anything else
+cannot be accepted, as it carries no embedded script.
+
+### Thumbnail
+
+| Property | Requirement |
+| --- | --- |
+| Format | WebP, PNG or JPEG |
+| File size | up to 500 KB |
+| Resolution | up to 1280x720 |
+
+The camera button above the preview produces a conforming file.
+
+### Script header
+
+These are read from the script recovered out of the recording.
+
+| Directive | Required | Purpose |
+| --- | --- | --- |
+| `-- @title` | **yes** | The entry's name: it heads the card and names the directory it is stored in |
+| `-- @author` | no | The credit on the card. Defaults to your GitHub username |
+| `-- @version` | no | Shown on the card |
+| `-- @api_level` | no | The API level shown on the card |
+| `--[[ @description ]]` | no | The card's blurb. Falls back to the issue form's Description |
+
+An absent or empty `-- @title` is rejected. New Script in the simulator starts
+you off with all of these in place, so normally there is nothing to add.
+
+### Attachments
+
+- Drag files into **the fields of the issue body**. Files attached in a
+  comment are not picked up.
+- Only files uploaded to GitHub are fetched; external URLs are rejected.
+
+### For updates and removals
+
+- Put the **published entry's name** (its `-- @title` at the time) in the
+  form's Title. That is what identifies the entry.
+- For an update, the attached script's `-- @title` has to match it too. A
+  mismatch is rejected, since it would otherwise publish a second copy
+  alongside the original. To rename an entry, remove it and submit it anew.
 
 ## How a submission is published
 

@@ -337,34 +337,38 @@ function main() {
   }
 
   const submittedTitle = sectionText(sections, "Title", "Work title", "Sample title");
-  if (submittedTitle === "") {
-    fail(problems, "Title: missing.");
-  }
 
   // Which template the issue came from decides what is required of it: a
   // removal names an entry and nothing else, while a new submission and an
   // update both carry a full set of files.
   const requestKind = detectRequestKind(issue);
-  const titleSlug = buildTitleSlug(submittedTitle);
-  const entryDirectory = join(kGalleryDirectoryName, authorSlug, titleSlug);
   const existingEntries = listExistingEntries(authorSlug);
-  const entryExists = existingEntries.includes(titleSlug);
 
-  // An update or a removal has to name something that is actually there;
-  // otherwise the submitter has mistyped the title, and the entries they do
-  // have are the most useful thing to say back.
-  if (requestKind !== "new" && !entryExists && submittedTitle !== "") {
-    fail(
-      problems,
-      `Title: no entry named \`${submittedTitle}\` under \`${kGalleryDirectoryName}/${authorSlug}/\`.` +
-        (existingEntries.length === 0
-          ? " You have no published entries yet — submit it as a new entry instead."
-          : ` Yours are: ${existingEntries.map((entry) => `\`${entry}\``).join(", ")}.`),
-    );
+  // An update or a removal names an entry that already exists, and the form
+  // field is the only way to say which: a removal attaches no recording, so
+  // the script's own @title cannot be read at this point. A new submission
+  // instead takes its name from the script, so the form field is ignored --
+  // see the @title handling further down.
+  if (requestKind !== "new") {
+    if (submittedTitle === "") {
+      fail(problems, "Title: missing.");
+    } else if (!existingEntries.includes(buildTitleSlug(submittedTitle))) {
+      fail(
+        problems,
+        `Title: no entry named \`${submittedTitle}\` under \`${kGalleryDirectoryName}/${authorSlug}/\`.` +
+          (existingEntries.length === 0
+            ? " You have no published entries yet — submit it as a new entry instead."
+            : ` Yours are: ${existingEntries.map((entry) => `\`${entry}\``).join(", ")}.`),
+      );
+    }
   }
 
   if (requestKind === "remove") {
-    reportRemoval(problems, entryDirectory, emitDirectory);
+    reportRemoval(
+      problems,
+      join(kGalleryDirectoryName, authorSlug, buildTitleSlug(submittedTitle)),
+      emitDirectory,
+    );
     return;
   }
 
@@ -382,12 +386,11 @@ function main() {
     fail(problems, "Thumbnail: no attachment found. Drag the image file into that field.");
   }
 
-  // Emitting straight into the entry's own directory means an update
-  // overwrites in place, so the approve workflow's commit is the diff.
-  const workDirectory =
-    emitDirectory === undefined
-      ? join(process.env.RUNNER_TEMP ?? "/tmp", `submission-${issue.number}`)
-      : join(emitDirectory, authorSlug, titleSlug);
+  // Staged outside the gallery first: the entry's directory is named after
+  // the script's own @title, and that only becomes readable once the
+  // recording has been downloaded and its attachment extracted below.
+  const workDirectory = join(process.env.RUNNER_TEMP ?? "/tmp", `submission-${issue.number}`);
+  rmSync(workDirectory, { recursive: true, force: true });
   mkdirSync(workDirectory, { recursive: true });
   let scriptSource;
 
@@ -437,16 +440,48 @@ function main() {
     }
   }
 
-  if (scriptSource !== undefined && emitDirectory !== undefined) {
-    const metadata = extractScriptMetadata(scriptSource);
+  // The script names its own entry: @title is what the directory is called
+  // and what the card shows, so an update that keeps the same @title lands on
+  // the same directory however the issue was worded.
+  const metadata = scriptSource === undefined ? undefined : extractScriptMetadata(scriptSource);
+  if (metadata !== undefined && metadata.title === "") {
+    fail(
+      problems,
+      "Recording: the script has no `-- @title`. Add one to its header — it " +
+        "names the entry and titles its card.",
+    );
+  }
+
+  // An update has to keep pointing at the entry it named: letting a changed
+  // @title land somewhere new would publish a second copy and strand the
+  // original, which is exactly the duplication this layout exists to avoid.
+  if (
+    requestKind === "update" &&
+    metadata !== undefined &&
+    metadata.title !== "" &&
+    submittedTitle !== "" &&
+    buildTitleSlug(metadata.title) !== buildTitleSlug(submittedTitle)
+  ) {
+    fail(
+      problems,
+      `Recording: the script's \`-- @title\` is \`${metadata.title}\`, but this issue updates ` +
+        `\`${submittedTitle}\`. Make them match, or remove the old entry and submit this as a new one.`,
+    );
+  }
+
+  const entryDirectory =
+    metadata === undefined || metadata.title === ""
+      ? undefined
+      : join(kGalleryDirectoryName, authorSlug, buildTitleSlug(metadata.title));
+
+  if (scriptSource !== undefined && metadata !== undefined && entryDirectory !== undefined
+      && emitDirectory !== undefined) {
     writeFileSync(join(workDirectory, kScriptFileName), scriptSource);
     writeFileSync(
       join(workDirectory, kMetadataFileName),
       `${JSON.stringify(
         {
-          // The submitter's own header directives win when present; the issue
-          // form supplies the fallback.
-          title: metadata.title !== "" ? metadata.title : submittedTitle,
+          title: metadata.title,
           description: metadata.description !== "" ? metadata.description : submittedDescription,
           // The credit shown on the card. "-- @author" exists to override the
           // GitHub login with whatever name the author publishes under, so an
@@ -469,6 +504,15 @@ function main() {
         2,
       )}\n`,
     );
+
+    // Only now that everything validated does the staged set replace the
+    // entry, so a failed submission never leaves a half-written directory
+    // behind. Replacing rather than merging also drops files an update no
+    // longer carries, such as a thumbnail in the previous format.
+    const destination = join(emitDirectory, authorSlug, buildTitleSlug(metadata.title));
+    rmSync(destination, { recursive: true, force: true });
+    mkdirSync(join(emitDirectory, authorSlug), { recursive: true });
+    renameSync(workDirectory, destination);
   }
 
   if (problems.length > 0) {
