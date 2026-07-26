@@ -5,6 +5,12 @@
 // committed rather than built at deploy time: a merged pull request is all it
 // takes for a new sample to appear, with no rebuild of the simulator.
 //
+// This is an index, not a bundle: it carries each sample's metadata and the
+// path to its script, never the script body. Inlining the sources would mean
+// every visitor downloading every submission just to see the card grid, and
+// would keep a second copy of each script in a file that is regenerated on
+// every merge.
+//
 // Each sample contributes <slug>.lua (the script), <slug>.json (the metadata
 // the approve workflow derived from the submission) and its media. Entries are
 // sorted newest-first by issue number so the sample browser leads with recent
@@ -32,12 +38,23 @@ function issueNumberOf(slug) {
 const entries = readdirSync(samplesDirectory)
   .filter((name) => name.endsWith(".json"))
   .map((name) => name.slice(0, -".json".length))
+  // A metadata file whose script is missing would index a card that fails to
+  // open; fail the build instead of publishing it.
+  .filter((slug) => {
+    const hasScript = existsSync(join(samplesDirectory, `${slug}.lua`));
+    if (!hasScript) {
+      throw new Error(`samples/${slug}.json has no matching ${slug}.lua`);
+    }
+    return hasScript;
+  })
   .sort((first, second) => issueNumberOf(second) - issueNumberOf(first))
   .map((slug) => {
     const metadata = JSON.parse(readFileSync(join(samplesDirectory, `${slug}.json`), "utf8"));
     return {
       name: metadata.name ?? `${slug}.lua`,
-      source: readFileSync(join(samplesDirectory, `${slug}.lua`), "utf8"),
+      // Where the script lives, not the script itself; the simulator fetches
+      // this only for a sample the viewer actually opens.
+      scriptPath: `samples/${slug}.lua`,
       title: metadata.title ?? "",
       description: metadata.description ?? "",
       author: metadata.author ?? "",
