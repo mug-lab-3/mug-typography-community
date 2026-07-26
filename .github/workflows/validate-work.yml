@@ -1,8 +1,8 @@
-name: Validate Sample Submission
+name: Validate Work Submission
 
 # Manually triggered, never on issue creation: validation downloads and probes
 # attacker-supplied media, so it runs only once a maintainer has looked at the
-# submission and asked for it. Add the `sample:check` label to an issue, or
+# submission and asked for it. Add the `work:check` label to an issue, or
 # dispatch this workflow with the issue number.
 on:
   issues:
@@ -24,7 +24,7 @@ jobs:
     # means a maintainer asked for it.
     if: >
       github.event_name == 'workflow_dispatch' ||
-      github.event.label.name == 'sample:check'
+      github.event.label.name == 'work:check'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -59,7 +59,7 @@ jobs:
         # The report is written to a file rather than interpolated into a
         # later shell step: it embeds text from the issue body, which is
         # untrusted input.
-        run: node scripts/validate-submission.mjs issue.json > report.md 2>&1
+        run: node scripts/validate-work.mjs issue.json > report.md 2>&1
 
       - name: Report result
         if: always()
@@ -69,8 +69,8 @@ jobs:
           gh issue comment "${{ steps.resolve.outputs.number }}" --body-file report.md
           if [ "${{ steps.validate.outcome }}" = "success" ]; then
             gh issue edit "${{ steps.resolve.outputs.number }}" \
-              --add-label "sample:valid" --remove-label "sample:invalid"
+              --add-label "work:valid" --remove-label "work:invalid"
           else
             gh issue edit "${{ steps.resolve.outputs.number }}" \
-              --add-label "sample:invalid" --remove-label "sample:valid"
+              --add-label "work:invalid" --remove-label "work:valid"
           fi
