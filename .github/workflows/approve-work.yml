@@ -1,8 +1,8 @@
-name: Approve Sample Submission
+name: Approve Work Submission
 
 # Opens the pull request that lands a submission. Triggered by adding the
 # `approved` label (or dispatched with an issue number); merging that pull
-# request is what actually publishes the sample.
+# request is what actually publishes the work.
 on:
   issues:
     types: [labeled]
@@ -51,11 +51,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh issue view "${{ steps.resolve.outputs.number }}" --json number,url,body,author > issue.json
 
-      # Re-validated rather than trusting the earlier `sample:valid` label:
+      # Re-validated rather than trusting the earlier `work:valid` label:
       # the issue body may have been edited after that check ran, and this is
       # the step that decides what gets committed.
-      - name: Validate and emit sample files
-        run: node scripts/validate-submission.mjs issue.json --emit samples > report.md 2>&1
+      - name: Validate and emit work files
+        run: node scripts/validate-work.mjs issue.json --emit gallery > report.md 2>&1
 
       - name: Rebuild catalog
         run: node scripts/build-catalog.mjs
@@ -64,17 +64,17 @@ jobs:
         id: pr
         uses: peter-evans/create-pull-request@v6
         with:
-          branch: sample/issue-${{ steps.resolve.outputs.number }}
-          title: "Add community sample from #${{ steps.resolve.outputs.number }}"
+          branch: work/issue-${{ steps.resolve.outputs.number }}
+          title: "Add gallery work from #${{ steps.resolve.outputs.number }}"
           body: |
-            Adds the sample submitted in #${{ steps.resolve.outputs.number }}.
+            Adds the work submitted in #${{ steps.resolve.outputs.number }}.
 
             Validated against the media limits and the embedded script was
             extracted from the recording. Merging publishes it to the
-            simulator's sample browser.
-          commit-message: "Add community sample from #${{ steps.resolve.outputs.number }}"
+            simulator's gallery.
+          commit-message: "Add gallery work from #${{ steps.resolve.outputs.number }}"
           add-paths: |
-            samples
+            gallery
             catalog.json
 
       - name: Comment outcome

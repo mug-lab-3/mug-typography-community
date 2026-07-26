@@ -1,8 +1,8 @@
-// Validates one sample submission issue and, on success, writes the files the
+// Validates one work submission issue and, on success, writes the files the
 // approve workflow commits.
 //
 // Usage:
-//   node scripts/validate-submission.mjs <issue.json> [--emit <directory>]
+//   node scripts/validate-work.mjs <issue.json> [--emit <directory>]
 //
 // <issue.json> is the raw issue payload (`gh issue view --json`). Without
 // --emit this only reports; with it, the extracted script and the downloaded
@@ -212,8 +212,8 @@ function extractScriptMetadata(source) {
   };
 }
 
-// Derives the committed file's base name from the sample title, so the
-// repository reads as a list of samples rather than of issue numbers. The
+// Derives the committed file's base name from the work's title, so the
+// repository reads as a list of works rather than of issue numbers. The
 // issue number is kept as a suffix to guarantee uniqueness.
 function buildSlug(title, issueNumber) {
   const normalized = title
@@ -221,7 +221,7 @@ function buildSlug(title, issueNumber) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 40);
-  return `${normalized === "" ? "sample" : normalized}-${issueNumber}`;
+  return `${normalized === "" ? "work" : normalized}-${issueNumber}`;
 }
 
 function main() {
@@ -230,7 +230,7 @@ function main() {
   const emitIndex = args.indexOf("--emit");
   const emitDirectory = emitIndex >= 0 ? args[emitIndex + 1] : undefined;
   if (issuePath === undefined) {
-    throw new ValidationFailure("usage: validate-submission.mjs <issue.json> [--emit <directory>]");
+    throw new ValidationFailure("usage: validate-work.mjs <issue.json> [--emit <directory>]");
   }
 
   const issue = JSON.parse(readFileSync(issuePath, "utf8"));
@@ -238,17 +238,17 @@ function main() {
   const sections = parseIssueFormSections(body);
   const problems = [];
 
-  const submittedTitle = sectionText(sections, "Sample title");
+  const submittedTitle = sectionText(sections, "Work title");
   const submittedDescription = sectionText(sections, "Description");
   if (submittedTitle === "") {
-    fail(problems, "Sample title: missing.");
+    fail(problems, "Work title: missing.");
   }
   if (submittedDescription === "") {
     fail(problems, "Description: missing.");
   }
 
-  const videoUrl = findAssetUrl(sectionText(sections, "Recording (.webm)"));
-  const thumbnailUrl = findAssetUrl(sectionText(sections, "Thumbnail (.png / .jpg)"));
+  const videoUrl = findAssetUrl(sectionText(sections, "Recording"));
+  const thumbnailUrl = findAssetUrl(sectionText(sections, "Thumbnail"));
   if (videoUrl === undefined) {
     fail(problems, "Recording: no attachment found. Drag the `.webm` file into that field.");
   }

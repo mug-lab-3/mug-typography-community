@@ -1,25 +1,30 @@
-name: Sample submission
-description: Submit a script to the Mug Typography community sample browser.
-title: "[Sample] "
-labels: ["sample-submission"]
+name: Work submission
+description: Submit a work to the Mug Typography gallery.
+title: "[Work] "
+labels: ["work-submission"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for sharing a script!
+        Thanks for sharing your work!
 
         Record your animation in the simulator with **Record**, which embeds
-        the Lua source inside the resulting `.webm`. Attach that file below
-        along with a still image for the sample browser's card.
+        the Lua source inside the resulting `.webm`. Press the camera button
+        above the preview to save the still for your card.
 
-        Attach files by dragging them into the fields — do not paste the Lua
-        source as text, it is read back out of the recording itself.
+        Attach both files by dragging them into the fields below — do not
+        paste the Lua source as text, it is read back out of the recording
+        itself.
+
+        If you need to replace a file after posting, **edit this issue** and
+        replace it in the field. Files attached in a comment are not picked
+        up.
 
   - type: input
     id: title
     attributes:
-      label: Sample title
-      description: Shown on the card in the sample browser.
+      label: Work title
+      description: Shown on the card in the gallery.
       placeholder: Neon Flicker
     validations:
       required: true
@@ -35,7 +40,7 @@ body:
   - type: textarea
     id: recording
     attributes:
-      label: Recording (.webm)
+      label: Recording
       description: |
         The simulator recording with the script embedded.
         Limits: WebM, up to 1280x720, up to 15 seconds, up to 8 MB.
@@ -46,7 +51,7 @@ body:
   - type: textarea
     id: thumbnail
     attributes:
-      label: Thumbnail (.png / .jpg)
+      label: Thumbnail
       description: |
         The still shown on the card before playback.
         Limits: WebP, PNG or JPEG, up to 1280x720, up to 500 KB.
