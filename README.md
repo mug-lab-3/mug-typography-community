@@ -10,7 +10,7 @@ that land here appear in the simulator's sample browser under the
 1. Build your animation in the simulator.
 2. Press **Record**. The resulting `.webm` has the Lua source embedded in it,
    so the script is read back out of the recording — there is nothing to paste.
-3. Save a still image for the card.
+3. Press the camera button above the preview to save a still for the card.
 4. Open a [sample submission
    issue](../../issues/new?template=sample-submission.yml) and attach both
    files.
@@ -20,7 +20,7 @@ that land here appear in the simulator's sample browser under the
 | File | Format | Max size | Max resolution | Max length |
 | --- | --- | --- | --- | --- |
 | Recording | WebM | 8 MB | 1280x720 | 15 s |
-| Thumbnail | PNG or JPEG | 500 KB | 1280x720 | — |
+| Thumbnail | WebP, PNG or JPEG | 500 KB | 1280x720 | — |
 
 Your script's own `-- @title`, `-- @author`, `-- @version` and
 `--[[ @description ]]` header directives are used when present; the issue form

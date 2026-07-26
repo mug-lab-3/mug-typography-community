@@ -162,13 +162,18 @@ function validateVideo(filePath, problems) {
 }
 
 // The committed extension follows what the file actually is, since the
-// attachment URL carries none to copy.
-const kThumbnailExtensionByCodec = { png: ".png", mjpeg: ".jpg" };
+// attachment URL carries none to copy. WebP is what the simulator's Export
+// Thumbnail button produces; PNG and JPEG stay accepted for stills prepared
+// by hand.
+const kThumbnailExtensionByCodec = { webp: ".webp", png: ".png", mjpeg: ".jpg" };
 
 function validateThumbnail(filePath, problems) {
   const probed = probeMedia(filePath);
   if (kThumbnailExtensionByCodec[probed.codecName] === undefined) {
-    fail(problems, `Thumbnail: must be a PNG or JPEG image (detected \`${probed.codecName}\`).`);
+    fail(
+      problems,
+      `Thumbnail: must be a WebP, PNG or JPEG image (detected \`${probed.codecName}\`).`,
+    );
   }
   if (probed.sizeBytes > kMaxThumbnailBytes) {
     fail(
