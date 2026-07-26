@@ -1,0 +1,66 @@
+name: Validate Sample Submission
+
+# Manually triggered, never on issue creation: validation downloads and probes
+# attacker-supplied media, so it runs only once a maintainer has looked at the
+# submission and asked for it. Add the `sample:check` label to an issue, or
+# dispatch this workflow with the issue number.
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Issue number to validate
+        required: true
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  validate:
+    # The label path proceeds only for this one label. Applying a label
+    # already requires write access to the repository, so reaching this job
+    # means a maintainer asked for it.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.label.name == 'sample:check'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Resolve issue number
+        id: resolve
+        run: echo "number=${{ github.event.inputs.issue_number || github.event.issue.number }}" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh issue view "${{ steps.resolve.outputs.number }}" --json number,url,body,author > issue.json
+
+      - name: Validate submission
+        id: validate
+        # The report is written to a file rather than interpolated into a
+        # later shell step: it embeds text from the issue body, which is
+        # untrusted input.
+        run: node scripts/validate-submission.mjs issue.json > report.md 2>&1
+
+      - name: Report result
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment "${{ steps.resolve.outputs.number }}" --body-file report.md
+          if [ "${{ steps.validate.outcome }}" = "success" ]; then
+            gh issue edit "${{ steps.resolve.outputs.number }}" \
+              --add-label "sample:valid" --remove-label "sample:invalid"
+          else
+            gh issue edit "${{ steps.resolve.outputs.number }}" \
+              --add-label "sample:invalid" --remove-label "sample:valid"
+          fi

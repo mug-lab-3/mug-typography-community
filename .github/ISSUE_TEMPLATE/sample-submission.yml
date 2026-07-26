@@ -1,0 +1,65 @@
+name: Sample submission
+description: Submit a script to the Mug Typography community sample browser.
+title: "[Sample] "
+labels: ["sample-submission"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing a script!
+
+        Record your animation in the simulator with **Record**, which embeds
+        the Lua source inside the resulting `.webm`. Attach that file below
+        along with a still image for the sample browser's card.
+
+        Attach files by dragging them into the fields — do not paste the Lua
+        source as text, it is read back out of the recording itself.
+
+  - type: input
+    id: title
+    attributes:
+      label: Sample title
+      description: Shown on the card in the sample browser.
+      placeholder: Neon Flicker
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A sentence or two on what the animation does.
+    validations:
+      required: true
+
+  - type: textarea
+    id: recording
+    attributes:
+      label: Recording (.webm)
+      description: |
+        The simulator recording with the script embedded.
+        Limits: WebM, up to 1280x720, up to 15 seconds, up to 8 MB.
+      placeholder: Drag your .webm file here.
+    validations:
+      required: true
+
+  - type: textarea
+    id: thumbnail
+    attributes:
+      label: Thumbnail (.png / .jpg)
+      description: |
+        The still shown on the card before playback.
+        Limits: PNG or JPEG, up to 1280x720, up to 500 KB.
+      placeholder: Drag your image file here.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: license
+    attributes:
+      label: License
+      options:
+        - label: >
+            I wrote this script, and I agree to it being distributed as part
+            of this project under the repository's license.
+          required: true
