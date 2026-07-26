@@ -1,77 +1,54 @@
-# Mug Typography — Gallery
+# Mug Typography — ギャラリー
 
-Animations made by users of the [Mug Typography scripting
-simulator](https://mug-lab-3.github.io/mug-typography-docs/simulator/).
-Everything published here appears in the simulator's sample browser under the
-**gallery** tab.
+[English](README.en.md)
 
-## Adding yours to the gallery
+[Mug Typography スクリプティングシミュレータ](https://mug-lab-3.github.io/mug-typography-docs/simulator/)のユーザーが作った作品を集めた場所です。ここに公開された作品は、シミュレータのサンプルブラウザの **gallery** タブに表示されます。
 
-1. Build your animation in the simulator.
-2. Press **Record**. The resulting `.webm` has the Lua source embedded in it,
-   so the script is read back out of the recording — there is nothing to paste.
-3. Press the camera button above the preview to save a still for the card.
-4. Open a [new gallery
-   entry](../../issues/new?template=gallery-submission.yml) and attach both
-   files.
+## 作品を登録する
 
-The title you give becomes the name of your entry, so keep it in mind:
-updating or removing it later means giving the same title again.
+1. シミュレータでアニメーションを作ります。
+2. **Record** を押します。書き出された `.webm` には Lua のソースが埋め込まれるので、スクリプトを別途貼り付ける必要はありません。
+3. プレビュー上部のカメラボタンで、カード用の静止画を保存します。
+4. [新規登録リクエスト](../../issues/new?template=gallery-submission.yml)を開き、2つのファイルを添付します。
 
-To fix a file before it is published, edit the issue and swap it in the field
-— files attached in a comment are not picked up.
+入力したタイトルがそのまま作品の名前になります。後で更新・削除するときに同じタイトルを入力することになるので、覚えておいてください。
 
-## Updating or removing your entry
+公開前にファイルを差し替えたい場合は、**Issue 本文を編集**して該当の欄に貼り直してください。コメントに添付したファイルは読み取られません。
 
-Open a separate issue rather than editing a published one:
+## 作品を更新・削除する
 
-- [Update an entry](../../issues/new?template=gallery-update.yml) — replaces
-  the recording, thumbnail and script in place, keeping the entry where it is.
-- [Remove an entry](../../issues/new?template=gallery-removal.yml) — takes it
-  out of the gallery. Nothing to attach.
+公開済みの Issue を編集するのではなく、新しく Issue を立ててください。
 
-Both find the entry by your GitHub username plus the title, so the title has
-to match what was published. You can only reach your own entries: everything
-you publish lives under `gallery/<your-username>/`, and that path comes from
-who opened the issue.
+- [作品を更新する](../../issues/new?template=gallery-update.yml) — 録画・サムネイル・スクリプトをその場で差し替えます。ギャラリー上の位置はそのままです。
+- [作品を削除する](../../issues/new?template=gallery-removal.yml) — ギャラリーから取り下げます。添付は不要です。
 
-### Limits
+どちらも **GitHub ユーザー名とタイトル**で対象を特定するため、タイトルは公開時のものと一致させてください。触れるのは自分の作品だけです。公開した作品はすべて `gallery/<あなたのユーザー名>/` の下に置かれ、このパスは Issue を立てた人から決まります。
 
-| File | Format | Max size | Max resolution | Max length |
+### 制限
+
+| ファイル | 形式 | 最大サイズ | 最大解像度 | 最大長 |
 | --- | --- | --- | --- | --- |
-| Recording | WebM | 8 MB | 1280x720 | 15 s |
-| Thumbnail | WebP, PNG or JPEG | 500 KB | 1280x720 | — |
+| 録画 | WebM | 8 MB | 1280x720 | 15 秒 |
+| サムネイル | WebP / PNG / JPEG | 500 KB | 1280x720 | — |
 
-Your script's own `-- @title`, `-- @version` and `--[[ @description ]]` header
-directives are used when present; the issue form fields fill in the rest.
+スクリプト内の `-- @title`、`-- @version`、`--[[ @description ]]` ディレクティブが書かれていればそれが使われ、残りは Issue フォームの入力で補われます。
 
-Cards are credited to your GitHub username. Set `-- @author` only if you
-publish under a different name — it overrides the credit and nothing else.
+カードの作者名には GitHub ユーザー名が表示されます。別の名義で公開している場合のみ `-- @author` を設定してください。これは表示名を上書きするだけで、他には影響しません。
 
-## How a submission is published
+## 公開までの流れ
 
-Submissions are reviewed by hand — nothing runs automatically when an issue is
-opened.
+投稿は人の手でレビューされます。Issue を立てただけでは何も自動実行されません。
 
-1. A maintainer adds the `gallery:check` label. A workflow validates the
-   attachments against the limits above, extracts the embedded script, and
-   comments with the result.
-2. A maintainer adds the `approved` label. A workflow re-validates, applies
-   the change under `gallery/`, rebuilds `catalog.json`, and opens a pull
-   request.
-3. Merging that pull request publishes it. The simulator fetches
-   `catalog.json` at runtime, so no redeploy is needed.
+1. メンテナが `gallery:check` ラベルを付けます。ワークフローが添付ファイルを上記の制限に照らして検証し、埋め込まれたスクリプトを取り出して、結果をコメントします。
+2. メンテナが `approved` ラベルを付けます。ワークフローが再検証し、`gallery/` 以下に変更を適用して `catalog.json` を再生成し、プルリクエストを作成します。
+3. そのプルリクエストがマージされると公開されます。シミュレータは `catalog.json` を実行時に取得するため、再デプロイは不要です。
 
-## Repository layout
+## リポジトリの構成
 
-- `gallery/<username>/<title>/` — one directory per published entry, holding
-  `script.lua`, `preview.webm`, `thumbnail.*` and `metadata.json`.
-- `catalog.json` — an index generated from `gallery/` by
-  `scripts/build-catalog.mjs`, naming each entry's script rather than carrying
-  it. Fetched directly by the simulator; do not edit by hand.
-- `scripts/` — the validation and catalog tooling the workflows run.
+- `gallery/<ユーザー名>/<タイトル>/` — 公開作品ごとのディレクトリ。`script.lua`、`preview.webm`、`thumbnail.*`、`metadata.json` を格納します。
+- `catalog.json` — `scripts/build-catalog.mjs` が `gallery/` から生成する索引です。スクリプト本体は持たず、その場所だけを記録します。シミュレータが直接取得するため、手で編集しないでください。
+- `scripts/` — ワークフローが実行する検証・カタログ生成ツール。
 
-## License
+## ライセンス
 
-By submitting, you confirm the script is yours and agree to it being
-distributed as part of this project.
+投稿することで、そのスクリプトがあなた自身の著作物であること、および本プロジェクトの一部として配布されることに同意したものとみなされます。
