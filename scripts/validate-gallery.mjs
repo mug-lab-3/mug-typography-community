@@ -13,7 +13,15 @@
 // the limits one round trip at a time.
 
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { extractScriptAttachment } from "./webmAttachment.mjs";
 
@@ -219,16 +227,80 @@ function extractScriptMetadata(source) {
   };
 }
 
-// Derives the committed file's base name from the submitted title, so the
-// repository reads as a list of entries rather than of issue numbers. The
-// issue number is kept as a suffix to guarantee uniqueness.
-function buildSlug(title, issueNumber) {
+// An entry lives at gallery/<author>/<title-slug>/, so the submitter and the
+// title together address it. No issue number is involved: an update arrives
+// as a separate issue, and it has to land on the directory the original
+// submission created.
+//
+// Two people may therefore use the same title without colliding, and nobody
+// can write outside their own directory, since the author segment comes from
+// the issue's author rather than from anything in its body.
+function buildTitleSlug(title) {
   const normalized = title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 40);
-  return `${normalized === "" ? "entry" : normalized}-${issueNumber}`;
+  return normalized === "" ? "entry" : normalized;
+}
+
+// GitHub logins only contain alphanumerics and hyphens, so this merely stops
+// anything that is not a real login from reaching a path.
+function buildAuthorSlug(login) {
+  return login.toLowerCase().replace(/[^a-z0-9-]+/g, "");
+}
+
+// Fixed names inside the entry directory: the directory already identifies
+// the entry, so the files need not repeat the title, and an update that
+// switches thumbnail format cannot leave the previous one orphaned beside it.
+const kScriptFileName = "script.lua";
+const kVideoFileName = "preview.webm";
+const kMetadataFileName = "metadata.json";
+const kThumbnailBaseName = "thumbnail";
+const kGalleryDirectoryName = "gallery";
+
+// Which of the three issue templates this came from. The label each template
+// applies is the signal; the issue title prefix is a fallback for an issue
+// whose labels were edited by hand.
+function detectRequestKind(issue) {
+  const labels = (issue.labels ?? []).map((label) => label.name ?? label);
+  let kind = "new";
+  if (labels.includes("gallery:update") || /^\[Gallery update\]/i.test(issue.title ?? "")) {
+    kind = "update";
+  } else if (labels.includes("gallery:remove") || /^\[Gallery removal\]/i.test(issue.title ?? "")) {
+    kind = "remove";
+  }
+  return kind;
+}
+
+// The submitter's own entries, for telling them what they can name when a
+// title does not match. Reads the working tree, which the workflow has
+// checked out at the commit the pull request will be based on.
+function listExistingEntries(authorSlug) {
+  const authorDirectory = join(kGalleryDirectoryName, authorSlug);
+  let entries = [];
+  if (existsSync(authorDirectory)) {
+    entries = readdirSync(authorDirectory, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort();
+  }
+  return entries;
+}
+
+// A removal emits nothing; it records the directory for the approve workflow
+// to delete, so the two never disagree about what is being removed.
+function reportRemoval(problems, entryDirectory, emitDirectory) {
+  if (problems.length > 0) {
+    console.log(`### Validation failed\n\n${problems.map((problem) => `- ${problem}`).join("\n")}`);
+    process.exitCode = 1;
+  } else {
+    if (emitDirectory !== undefined) {
+      mkdirSync(emitDirectory, { recursive: true });
+      writeFileSync(join(emitDirectory, "removal.txt"), `${entryDirectory}\n`);
+    }
+    console.log(`### Validation passed\n\nReady to remove \`${entryDirectory}\`.`);
+  }
 }
 
 function main() {
@@ -245,11 +317,45 @@ function main() {
   const sections = parseIssueFormSections(body);
   const problems = [];
 
+  const authorLogin = issue.author?.login ?? "";
+  const authorSlug = buildAuthorSlug(authorLogin);
+  if (authorSlug === "") {
+    throw new ValidationFailure("issue payload carries no usable author login");
+  }
+
   const submittedTitle = sectionText(sections, "Title", "Work title", "Sample title");
-  const submittedDescription = sectionText(sections, "Description");
   if (submittedTitle === "") {
     fail(problems, "Title: missing.");
   }
+
+  // Which template the issue came from decides what is required of it: a
+  // removal names an entry and nothing else, while a new submission and an
+  // update both carry a full set of files.
+  const requestKind = detectRequestKind(issue);
+  const titleSlug = buildTitleSlug(submittedTitle);
+  const entryDirectory = join(kGalleryDirectoryName, authorSlug, titleSlug);
+  const existingEntries = listExistingEntries(authorSlug);
+  const entryExists = existingEntries.includes(titleSlug);
+
+  // An update or a removal has to name something that is actually there;
+  // otherwise the submitter has mistyped the title, and the entries they do
+  // have are the most useful thing to say back.
+  if (requestKind !== "new" && !entryExists && submittedTitle !== "") {
+    fail(
+      problems,
+      `Title: no entry named \`${submittedTitle}\` under \`${kGalleryDirectoryName}/${authorSlug}/\`.` +
+        (existingEntries.length === 0
+          ? " You have no published entries yet — submit it as a new entry instead."
+          : ` Yours are: ${existingEntries.map((entry) => `\`${entry}\``).join(", ")}.`),
+    );
+  }
+
+  if (requestKind === "remove") {
+    reportRemoval(problems, entryDirectory, emitDirectory);
+    return;
+  }
+
+  const submittedDescription = sectionText(sections, "Description");
   if (submittedDescription === "") {
     fail(problems, "Description: missing.");
   }
@@ -263,14 +369,17 @@ function main() {
     fail(problems, "Thumbnail: no attachment found. Drag the image file into that field.");
   }
 
-  const workDirectory = emitDirectory ?? join(process.env.RUNNER_TEMP ?? "/tmp", `submission-${issue.number}`);
+  // Emitting straight into the entry's own directory means an update
+  // overwrites in place, so the approve workflow's commit is the diff.
+  const workDirectory =
+    emitDirectory === undefined
+      ? join(process.env.RUNNER_TEMP ?? "/tmp", `submission-${issue.number}`)
+      : join(emitDirectory, authorSlug, titleSlug);
   mkdirSync(workDirectory, { recursive: true });
-
-  const slug = buildSlug(submittedTitle, issue.number);
   let scriptSource;
 
   if (videoUrl !== undefined && assertAllowedHost(videoUrl, problems, "Recording")) {
-    const videoPath = join(workDirectory, `${slug}.webm`);
+    const videoPath = join(workDirectory, kVideoFileName);
     try {
       download(videoUrl, videoPath, kMaxVideoBytes);
       validateVideo(videoPath, problems);
@@ -292,7 +401,7 @@ function main() {
   if (thumbnailUrl !== undefined && assertAllowedHost(thumbnailUrl, problems, "Thumbnail")) {
     // Downloaded under a neutral name first, then renamed to match the image
     // type ffprobe reports: the attachment URL has no extension to copy.
-    const downloadPath = join(workDirectory, `${slug}.thumbnail-download`);
+    const downloadPath = join(workDirectory, `${kThumbnailBaseName}.download`);
     try {
       download(thumbnailUrl, downloadPath, kMaxThumbnailBytes);
       const probed = validateThumbnail(downloadPath, problems);
@@ -300,7 +409,15 @@ function main() {
       if (extension === undefined) {
         rmSync(downloadPath, { force: true });
       } else {
-        renameSync(downloadPath, join(workDirectory, `${slug}${extension}`));
+        // An update may arrive in a different format from the one already
+        // committed; the stale file has to go, or the entry would carry two
+        // thumbnails and the catalog would pick by extension order.
+        for (const staleExtension of Object.values(kThumbnailExtensionByCodec)) {
+          if (staleExtension !== extension) {
+            rmSync(join(workDirectory, `${kThumbnailBaseName}${staleExtension}`), { force: true });
+          }
+        }
+        renameSync(downloadPath, join(workDirectory, `${kThumbnailBaseName}${extension}`));
       }
     } catch (error) {
       fail(problems, `Thumbnail: could not be downloaded or read (${String(error.message ?? error)}).`);
@@ -309,20 +426,26 @@ function main() {
 
   if (scriptSource !== undefined && emitDirectory !== undefined) {
     const metadata = extractScriptMetadata(scriptSource);
-    writeFileSync(join(emitDirectory, `${slug}.lua`), scriptSource);
+    writeFileSync(join(workDirectory, kScriptFileName), scriptSource);
     writeFileSync(
-      join(emitDirectory, `${slug}.json`),
+      join(workDirectory, kMetadataFileName),
       `${JSON.stringify(
         {
-          name: `${slug}.lua`,
           // The submitter's own header directives win when present; the issue
           // form supplies the fallback.
           title: metadata.title !== "" ? metadata.title : submittedTitle,
           description: metadata.description !== "" ? metadata.description : submittedDescription,
-          author: metadata.author !== "" ? metadata.author : issue.author?.login ?? "",
+          author: metadata.author !== "" ? metadata.author : authorLogin,
+          // Who owns the directory, as opposed to the display name above,
+          // which the script's own @author directive may override.
+          submitter: authorLogin,
           version: metadata.version,
           apiLevel: metadata.apiLevel,
           sourceUrl: issue.url,
+          // Sorts the gallery newest-first. An update refreshes it, so a
+          // revised entry resurfaces rather than staying where it first
+          // landed.
+          publishedAt: new Date().toISOString(),
         },
         null,
         2,
@@ -334,7 +457,7 @@ function main() {
     console.log(`### Validation failed\n\n${problems.map((problem) => `- ${problem}`).join("\n")}`);
     process.exitCode = 1;
   } else {
-    console.log(`### Validation passed\n\nReady to publish as \`${slug}\`.`);
+    console.log(`### Validation passed\n\nReady to publish as \`${entryDirectory}\`.`);
   }
 }
 

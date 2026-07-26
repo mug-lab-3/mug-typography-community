@@ -1,14 +1,15 @@
 [
   {
-    "name": "loop-flyby-and-sparkle-reentry-1.lua",
-    "scriptPath": "gallery/loop-flyby-and-sparkle-reentry-1.lua",
+    "name": "loop-flyby-and-sparkle-reentry.lua",
+    "scriptPath": "gallery/mug-lab-3/loop-flyby-and-sparkle-reentry/script.lua",
     "title": "Loop Flyby and Sparkle Reentry",
     "description": "Characters loop in from the right, exit left, then re-enter from the distance with\na sparkle before fading out to the left.",
     "author": "Mug",
     "version": "1.0",
     "apiLevel": 3,
-    "thumbnailPath": "gallery/loop-flyby-and-sparkle-reentry-1.webp",
-    "videoPath": "gallery/loop-flyby-and-sparkle-reentry-1.webm",
-    "sourceUrl": "https://github.com/mug-lab-3/mug-typography-community/issues/1"
+    "thumbnailPath": "gallery/mug-lab-3/loop-flyby-and-sparkle-reentry/thumbnail.webp",
+    "videoPath": "gallery/mug-lab-3/loop-flyby-and-sparkle-reentry/preview.webm",
+    "sourceUrl": "https://github.com/mug-lab-3/mug-typography-community/issues/1",
+    "publishedAt": "2026-07-26T00:00:00.000Z"
   }
 ]

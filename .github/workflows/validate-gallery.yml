@@ -52,7 +52,7 @@ jobs:
       - name: Fetch issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh issue view "${{ steps.resolve.outputs.number }}" --json number,url,body,author > issue.json
+        run: gh issue view "${{ steps.resolve.outputs.number }}" --json number,url,body,author,title,labels > issue.json
 
       - name: Validate submission
         id: validate

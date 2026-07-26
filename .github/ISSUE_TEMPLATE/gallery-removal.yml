@@ -1,0 +1,30 @@
+name: Gallery — remove an entry
+description: Take one of your published entries out of the gallery.
+title: "[Gallery removal] "
+labels: ["gallery-submission", "gallery:remove"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This removes one of your own entries. Give the **same title** as the
+        entry you want taken down — that title is how it is found, so it has
+        to match exactly.
+
+        Nothing needs to be attached.
+
+  - type: input
+    id: title
+    attributes:
+      label: Title
+      description: The title of the entry to remove, exactly as published.
+      placeholder: Neon Flicker
+    validations:
+      required: true
+
+  - type: textarea
+    id: reason
+    attributes:
+      label: Reason
+      description: Optional — helpful context, but not required.
+    validations:
+      required: false

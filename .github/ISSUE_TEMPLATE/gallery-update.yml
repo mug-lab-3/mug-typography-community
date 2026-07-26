@@ -1,32 +1,26 @@
-name: Gallery — add a new entry
-description: Publish an animation of yours in the Mug Typography gallery.
-title: "[Gallery] "
-labels: ["gallery-submission", "gallery:new"]
+name: Gallery — update an entry
+description: Replace the recording, thumbnail or script of an entry you already published.
+title: "[Gallery update] "
+labels: ["gallery-submission", "gallery:update"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for sharing your animation!
+        This replaces one of your existing entries in place — it keeps its
+        place in the gallery rather than appearing a second time.
 
-        Record your animation in the simulator with **Record**, which embeds
-        the Lua source inside the resulting `.webm`. Press the camera button
-        above the preview to save the still for your card.
+        Give the **same title** as the entry you are updating. That title is
+        how the entry is found, so it has to match exactly; if you want to
+        rename it instead, remove the old entry and add a new one.
 
-        Attach both files by dragging them into the fields below — do not
-        paste the Lua source as text, it is read back out of the recording
-        itself.
-
-        If you need to replace a file after posting, **edit this issue** and
-        replace it in the field. Files attached in a comment are not picked
-        up.
+        Attach a fresh recording and thumbnail below, both required even if
+        only one of them changed.
 
   - type: input
     id: title
     attributes:
       label: Title
-      description: >
-        Shown on the card. This also names your entry, so remember it —
-        updating or removing it later means giving the same title.
+      description: The title of the entry you are updating, exactly as published.
       placeholder: Neon Flicker
     validations:
       required: true

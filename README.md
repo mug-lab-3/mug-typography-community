@@ -11,12 +11,29 @@ Everything published here appears in the simulator's sample browser under the
 2. Press **Record**. The resulting `.webm` has the Lua source embedded in it,
    so the script is read back out of the recording — there is nothing to paste.
 3. Press the camera button above the preview to save a still for the card.
-4. Open a [gallery
-   submission](../../issues/new?template=gallery-submission.yml) and attach
-   both files.
+4. Open a [new gallery
+   entry](../../issues/new?template=gallery-submission.yml) and attach both
+   files.
 
-To replace a file after posting, edit the issue and swap it in the field —
-files attached in a comment are not picked up.
+The title you give becomes the name of your entry, so keep it in mind:
+updating or removing it later means giving the same title again.
+
+To fix a file before it is published, edit the issue and swap it in the field
+— files attached in a comment are not picked up.
+
+## Updating or removing your entry
+
+Open a separate issue rather than editing a published one:
+
+- [Update an entry](../../issues/new?template=gallery-update.yml) — replaces
+  the recording, thumbnail and script in place, keeping the entry where it is.
+- [Remove an entry](../../issues/new?template=gallery-removal.yml) — takes it
+  out of the gallery. Nothing to attach.
+
+Both find the entry by your GitHub username plus the title, so the title has
+to match what was published. You can only reach your own entries: everything
+you publish lives under `gallery/<your-username>/`, and that path comes from
+who opened the issue.
 
 ### Limits
 
@@ -37,15 +54,16 @@ opened.
 1. A maintainer adds the `gallery:check` label. A workflow validates the
    attachments against the limits above, extracts the embedded script, and
    comments with the result.
-2. A maintainer adds the `approved` label. A workflow re-validates, writes the
-   files into `gallery/`, rebuilds `catalog.json`, and opens a pull request.
+2. A maintainer adds the `approved` label. A workflow re-validates, applies
+   the change under `gallery/`, rebuilds `catalog.json`, and opens a pull
+   request.
 3. Merging that pull request publishes it. The simulator fetches
    `catalog.json` at runtime, so no redeploy is needed.
 
 ## Repository layout
 
-- `gallery/` — one `<slug>.lua`, `<slug>.json` (metadata), `<slug>.webm` and
-  thumbnail per published entry.
+- `gallery/<username>/<title>/` — one directory per published entry, holding
+  `script.lua`, `preview.webm`, `thumbnail.*` and `metadata.json`.
 - `catalog.json` — an index generated from `gallery/` by
   `scripts/build-catalog.mjs`, naming each entry's script rather than carrying
   it. Fetched directly by the simulator; do not edit by hand.

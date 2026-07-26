@@ -23,48 +23,64 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const galleryDirectory = join(root, "gallery");
 
-function findMediaPath(slug, extensions) {
-  const match = extensions.find((extension) => existsSync(join(galleryDirectory, `${slug}${extension}`)));
-  return match === undefined ? undefined : `gallery/${slug}${match}`;
+const kScriptFileName = "script.lua";
+const kVideoFileName = "preview.webm";
+const kMetadataFileName = "metadata.json";
+const kThumbnailExtensions = [".webp", ".png", ".jpg", ".jpeg"];
+
+function findEntryFile(entryPath, fileNames) {
+  const match = fileNames.find((fileName) => existsSync(join(galleryDirectory, entryPath, fileName)));
+  return match === undefined ? undefined : `gallery/${entryPath}/${match}`;
 }
 
-// The trailing "-<issueNumber>" that buildSlug in validate-submission.mjs
-// appends; absent or malformed slugs sort last rather than breaking the sort.
-function issueNumberOf(slug) {
-  const match = /-(\d+)$/.exec(slug);
-  return match === null ? 0 : Number(match[1]);
+function listDirectories(directoryPath) {
+  return existsSync(directoryPath)
+    ? readdirSync(directoryPath, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name)
+        .sort()
+    : [];
 }
 
-const entries = readdirSync(galleryDirectory)
-  .filter((name) => name.endsWith(".json"))
-  .map((name) => name.slice(0, -".json".length))
-  // A metadata file whose script is missing would index a card that fails to
+// gallery/<author>/<title-slug>/, so every entry is addressed by who made it
+// and what they called it. Both levels are walked rather than assumed, since
+// an author directory may hold any number of entries.
+const entryPaths = listDirectories(galleryDirectory).flatMap((author) =>
+  listDirectories(join(galleryDirectory, author)).map((title) => `${author}/${title}`),
+);
+
+const entries = entryPaths
+  // An entry directory without its script would index a card that fails to
   // open; fail the build instead of publishing it.
-  .filter((slug) => {
-    const hasScript = existsSync(join(galleryDirectory, `${slug}.lua`));
-    if (!hasScript) {
-      throw new Error(`gallery/${slug}.json has no matching ${slug}.lua`);
+  .map((entryPath) => {
+    if (!existsSync(join(galleryDirectory, entryPath, kScriptFileName))) {
+      throw new Error(`gallery/${entryPath} has no ${kScriptFileName}`);
     }
-    return hasScript;
-  })
-  .sort((first, second) => issueNumberOf(second) - issueNumberOf(first))
-  .map((slug) => {
-    const metadata = JSON.parse(readFileSync(join(galleryDirectory, `${slug}.json`), "utf8"));
+    const metadata = JSON.parse(
+      readFileSync(join(galleryDirectory, entryPath, kMetadataFileName), "utf8"),
+    );
     return {
-      name: metadata.name ?? `${slug}.lua`,
+      name: `${entryPath.split("/")[1]}.lua`,
       // Where the script lives, not the script itself; the simulator fetches
       // this only for an entry the viewer actually opens.
-      scriptPath: `gallery/${slug}.lua`,
+      scriptPath: `gallery/${entryPath}/${kScriptFileName}`,
       title: metadata.title ?? "",
       description: metadata.description ?? "",
       author: metadata.author ?? "",
       version: metadata.version ?? "",
       apiLevel: metadata.apiLevel,
-      thumbnailPath: findMediaPath(slug, [".webp", ".png", ".jpg", ".jpeg"]),
-      videoPath: findMediaPath(slug, [".webm"]),
+      thumbnailPath: findEntryFile(
+        entryPath,
+        kThumbnailExtensions.map((extension) => `thumbnail${extension}`),
+      ),
+      videoPath: findEntryFile(entryPath, [kVideoFileName]),
       sourceUrl: metadata.sourceUrl,
+      publishedAt: metadata.publishedAt,
     };
-  });
+  })
+  // Newest first, so the gallery leads with recent submissions. Entries
+  // predating publishedAt sort last rather than breaking the comparison.
+  .sort((first, second) => (second.publishedAt ?? "").localeCompare(first.publishedAt ?? ""));
 
 writeFileSync(join(root, "catalog.json"), `${JSON.stringify(entries, null, 2)}\n`);
 console.log(`catalog.json written with ${entries.length} entr${entries.length === 1 ? "y" : "ies"}`);

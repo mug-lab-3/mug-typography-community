@@ -49,13 +49,28 @@ jobs:
       - name: Fetch issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh issue view "${{ steps.resolve.outputs.number }}" --json number,url,body,author > issue.json
+        run: gh issue view "${{ steps.resolve.outputs.number }}" --json number,url,body,author,title,labels > issue.json
 
       # Re-validated rather than trusting the earlier `gallery:valid` label:
       # the issue body may have been edited after that check ran, and this is
       # the step that decides what gets committed.
       - name: Validate and emit gallery files
         run: node scripts/validate-gallery.mjs issue.json --emit gallery > report.md 2>&1
+
+      # A removal writes the directory to delete rather than emitting files,
+      # so that the deletion and the validation can never disagree about
+      # which entry is being taken down.
+      - name: Apply removal
+        id: removal
+        run: |
+          if [ -f gallery/removal.txt ]; then
+            target="$(cat gallery/removal.txt)"
+            rm -f gallery/removal.txt
+            rm -rf "$target"
+            # Drop the author directory too once it holds nothing else.
+            rmdir "$(dirname "$target")" 2>/dev/null || true
+            echo "removed=$target" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Rebuild catalog
         run: node scripts/build-catalog.mjs
@@ -65,14 +80,20 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           branch: gallery/issue-${{ steps.resolve.outputs.number }}
-          title: "Add gallery entry from #${{ steps.resolve.outputs.number }}"
+          title: >-
+            ${{ steps.removal.outputs.removed && 'Remove' || 'Publish' }}
+            gallery entry from #${{ steps.resolve.outputs.number }}
           body: |
-            Adds the entry submitted in #${{ steps.resolve.outputs.number }}.
+            Applies the request in #${{ steps.resolve.outputs.number }}.
 
-            Validated against the media limits and the embedded script was
-            extracted from the recording. Merging publishes it to the
-            simulator's gallery.
-          commit-message: "Add gallery entry from #${{ steps.resolve.outputs.number }}"
+            ${{ steps.removal.outputs.removed
+              && format('Removes `{0}`.', steps.removal.outputs.removed)
+              || 'Validated against the media limits, with the script extracted from the recording.' }}
+
+            Merging updates the simulator's gallery.
+          commit-message: >-
+            ${{ steps.removal.outputs.removed && 'Remove' || 'Publish' }}
+            gallery entry from #${{ steps.resolve.outputs.number }}
           add-paths: |
             gallery
             catalog.json
