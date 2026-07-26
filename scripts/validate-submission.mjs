@@ -13,7 +13,7 @@
 // the limits one round trip at a time.
 
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { extractScriptAttachment } from "./webmAttachment.mjs";
 
@@ -31,8 +31,11 @@ const kMaxThumbnailHeight = 720;
 // into a request proxy for whatever the submitter names.
 const kAllowedAssetHosts = ["github.com", "user-images.githubusercontent.com", "raw.githubusercontent.com"];
 
-const kVideoExtensions = [".webm"];
-const kThumbnailExtensions = [".png", ".jpg", ".jpeg"];
+// GitHub rewrites uploads to extensionless URLs under
+// /user-attachments/assets/<uuid>, so the file type cannot be read off the
+// URL. Each field's expected type is established by ffprobe after download
+// instead (validateVideo / validateThumbnail); the field the URL appeared in
+// is what says which of the two it is meant to be.
 
 class ValidationFailure extends Error {}
 
@@ -59,13 +62,12 @@ function sectionText(sections, label) {
   return value === undefined || value === "_No response_" ? "" : value;
 }
 
-// Attachments appear in the body as bare links or as Markdown image syntax.
-function findAssetUrl(sectionValue, allowedExtensions) {
-  const urls = [...sectionValue.matchAll(/https?:\/\/[^\s)\]<>"]+/g)].map((match) => match[0]);
-  return urls.find((url) => {
-    const path = new URL(url).pathname.toLowerCase();
-    return allowedExtensions.some((extension) => path.endsWith(extension));
-  });
+// Attachments appear in the body as bare links, as Markdown image syntax, or
+// as an <img src="..."> tag (GitHub rewrites pasted images to the latter).
+// The first URL in the field is taken as the attachment.
+function findAssetUrl(sectionValue) {
+  const match = /https?:\/\/[^\s)\]<>"']+/.exec(sectionValue);
+  return match === null ? undefined : match[0];
 }
 
 function assertAllowedHost(url, problems, label) {
@@ -159,9 +161,13 @@ function validateVideo(filePath, problems) {
   return probed;
 }
 
+// The committed extension follows what the file actually is, since the
+// attachment URL carries none to copy.
+const kThumbnailExtensionByCodec = { png: ".png", mjpeg: ".jpg" };
+
 function validateThumbnail(filePath, problems) {
   const probed = probeMedia(filePath);
-  if (!["png", "mjpeg"].includes(probed.codecName)) {
+  if (kThumbnailExtensionByCodec[probed.codecName] === undefined) {
     fail(problems, `Thumbnail: must be a PNG or JPEG image (detected \`${probed.codecName}\`).`);
   }
   if (probed.sizeBytes > kMaxThumbnailBytes) {
@@ -176,6 +182,7 @@ function validateThumbnail(filePath, problems) {
       `Thumbnail: ${probed.width}x${probed.height} exceeds the ${kMaxThumbnailWidth}x${kMaxThumbnailHeight} limit.`,
     );
   }
+  return probed;
 }
 
 const kDescriptionBlockPattern = /--\[\[\s*@description\r?\n?([\s\S]*?)\]\]/;
@@ -235,13 +242,13 @@ function main() {
     fail(problems, "Description: missing.");
   }
 
-  const videoUrl = findAssetUrl(sectionText(sections, "Recording (.webm)"), kVideoExtensions);
-  const thumbnailUrl = findAssetUrl(sectionText(sections, "Thumbnail (.png / .jpg)"), kThumbnailExtensions);
+  const videoUrl = findAssetUrl(sectionText(sections, "Recording (.webm)"));
+  const thumbnailUrl = findAssetUrl(sectionText(sections, "Thumbnail (.png / .jpg)"));
   if (videoUrl === undefined) {
-    fail(problems, "Recording: no `.webm` attachment found.");
+    fail(problems, "Recording: no attachment found. Drag the `.webm` file into that field.");
   }
   if (thumbnailUrl === undefined) {
-    fail(problems, "Thumbnail: no `.png`, `.jpg` or `.jpeg` attachment found.");
+    fail(problems, "Thumbnail: no attachment found. Drag the image file into that field.");
   }
 
   const workDirectory = emitDirectory ?? join(process.env.RUNNER_TEMP ?? "/tmp", `submission-${issue.number}`);
@@ -271,11 +278,18 @@ function main() {
   }
 
   if (thumbnailUrl !== undefined && assertAllowedHost(thumbnailUrl, problems, "Thumbnail")) {
-    const extension = new URL(thumbnailUrl).pathname.toLowerCase().endsWith(".png") ? ".png" : ".jpg";
-    const thumbnailPath = join(workDirectory, `${slug}${extension}`);
+    // Downloaded under a neutral name first, then renamed to match the image
+    // type ffprobe reports: the attachment URL has no extension to copy.
+    const downloadPath = join(workDirectory, `${slug}.thumbnail-download`);
     try {
-      download(thumbnailUrl, thumbnailPath, kMaxThumbnailBytes);
-      validateThumbnail(thumbnailPath, problems);
+      download(thumbnailUrl, downloadPath, kMaxThumbnailBytes);
+      const probed = validateThumbnail(downloadPath, problems);
+      const extension = kThumbnailExtensionByCodec[probed.codecName];
+      if (extension === undefined) {
+        rmSync(downloadPath, { force: true });
+      } else {
+        renameSync(downloadPath, join(workDirectory, `${slug}${extension}`));
+      }
     } catch (error) {
       fail(problems, `Thumbnail: could not be downloaded or read (${String(error.message ?? error)}).`);
     }
