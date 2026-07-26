@@ -42,9 +42,11 @@ who opened the issue.
 | Recording | WebM | 8 MB | 1280x720 | 15 s |
 | Thumbnail | WebP, PNG or JPEG | 500 KB | 1280x720 | — |
 
-Your script's own `-- @title`, `-- @author`, `-- @version` and
-`--[[ @description ]]` header directives are used when present; the issue form
-fields fill in the rest.
+Your script's own `-- @title`, `-- @version` and `--[[ @description ]]` header
+directives are used when present; the issue form fields fill in the rest.
+
+Cards are credited to your GitHub username. Set `-- @author` only if you
+publish under a different name — it overrides the credit and nothing else.
 
 ## How a submission is published
 

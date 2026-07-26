@@ -439,9 +439,14 @@ function main() {
           // form supplies the fallback.
           title: metadata.title !== "" ? metadata.title : submittedTitle,
           description: metadata.description !== "" ? metadata.description : submittedDescription,
+          // The credit shown on the card. "-- @author" exists to override the
+          // GitHub login with whatever name the author publishes under, so an
+          // absent or valueless directive falls back to the login rather than
+          // leaving the card unattributed.
           author: metadata.author !== "" ? metadata.author : authorLogin,
-          // Who owns the directory, as opposed to the display name above,
-          // which the script's own @author directive may override.
+          // Who the entry belongs to, which is what addresses its directory
+          // and decides who may update or remove it. Always the login, never
+          // the display name above.
           submitter: authorLogin,
           version: metadata.version,
           apiLevel: metadata.apiLevel,
