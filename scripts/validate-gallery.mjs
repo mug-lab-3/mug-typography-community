@@ -208,7 +208,11 @@ function validateThumbnail(filePath, problems) {
 const kDescriptionBlockPattern = /--\[\[\s*@description\r?\n?([\s\S]*?)\]\]/;
 
 function extractSingleLineDirective(source, directiveName) {
-  const pattern = new RegExp(`^--\\s*@${directiveName}\\s+(.+)$`, "m");
+  // [^\S\r\n] is horizontal whitespace only. Plain \s would match the
+  // newline too, so a directive left without a value ("-- @author", which is
+  // how the simulator's new-script template ships it) would silently take the
+  // next line as its own value.
+  const pattern = new RegExp(`^--[^\\S\\r\\n]*@${directiveName}[^\\S\\r\\n]+(.+)$`, "m");
   const match = pattern.exec(source);
   return match === null ? "" : match[1].trim();
 }
