@@ -32,6 +32,16 @@ jobs:
         with:
           node-version: 20
 
+      # ffprobe reads the attachments' dimensions, duration and format. It is
+      # not present on the runner image by default, so it is installed here
+      # rather than assumed.
+      - name: Install ffprobe
+        run: |
+          if ! command -v ffprobe > /dev/null; then
+            sudo apt-get update && sudo apt-get install -y ffmpeg
+          fi
+          ffprobe -version | head -1
+
       - name: Resolve issue number
         id: resolve
         run: echo "number=${{ github.event.inputs.issue_number || github.event.issue.number }}" >> "$GITHUB_OUTPUT"
