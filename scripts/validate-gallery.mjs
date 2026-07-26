@@ -248,10 +248,19 @@ function buildTitleSlug(title) {
   return normalized === "" ? "entry" : normalized;
 }
 
-// GitHub logins only contain alphanumerics and hyphens, so this merely stops
-// anything that is not a real login from reaching a path.
+// The directory is named after the submitter's GitHub login, which GitHub
+// guarantees is unique and case-insensitive (MUG-LAB-3 and mug-lab-3 are the
+// same account), so lowercasing it cannot merge two different users. The
+// display name is deliberately not used here: it is neither unique nor
+// stable, and "-- @author" may override it besides.
+//
+// A login only ever contains alphanumerics and hyphens. Anything else means
+// the payload is not a real login, and that is rejected rather than stripped:
+// silently deleting characters could map two distinct inputs onto one
+// directory.
 function buildAuthorSlug(login) {
-  return login.toLowerCase().replace(/[^a-z0-9-]+/g, "");
+  const normalized = login.toLowerCase();
+  return /^[a-z0-9-]+$/.test(normalized) ? normalized : "";
 }
 
 // Fixed names inside the entry directory: the directory already identifies
