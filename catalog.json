@@ -3,14 +3,14 @@
     "name": "flower-bloom.lua",
     "scriptPath": "gallery/mug-lab-3/flower-bloom/script.lua",
     "title": "Flower Bloom",
-    "description": "Flowers bloom in a random order, gently sway, and transform into the\noriginal text. In the outro, the letters return to flowers before\ndisappearing together.",
+    "description": "Flowers bloom in a random order, gently sway, and transform into the\noriginal text while restoring its inspector colors. In the outro, the\nletters return to flowers before disappearing together.\nVersion 1.1 respects user-selected text colors and gradients.",
     "author": "Mug",
-    "version": "1.0",
+    "version": "1.1",
     "apiLevel": 5,
     "thumbnailPath": "gallery/mug-lab-3/flower-bloom/thumbnail.webp",
     "videoPath": "gallery/mug-lab-3/flower-bloom/preview.webm",
-    "sourceUrl": "https://github.com/mug-lab-3/mug-typography-community/issues/4",
-    "publishedAt": "2026-07-30T03:43:03.650Z"
+    "sourceUrl": "https://github.com/mug-lab-3/mug-typography-community/issues/6",
+    "publishedAt": "2026-07-30T06:49:39.331Z"
   },
   {
     "name": "loop-flyby-and-sparkle-reentry.lua",

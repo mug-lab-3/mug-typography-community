@@ -3,12 +3,13 @@
 -- @recommend bg #18322b
 -- @title Flower Bloom
 -- @author Mug
--- @version 1.0
+-- @version 1.1
 -- @api_level 5
 --[[ @description
 Flowers bloom in a random order, gently sway, and transform into the
-original text. In the outro, the letters return to flowers before
-disappearing together.
+original text while restoring its inspector colors. In the outro, the
+letters return to flowers before disappearing together.
+Version 1.1 respects user-selected text colors and gradients.
 ]]
 
 local kFlowerViewBox = { 0, 0, 1000, 1000 }
@@ -110,7 +111,12 @@ local flowerColors = {
     { r = 0.58, g = 0.40, b = 0.80, a = 1.0 },
 }
 
-local kTextColor = { r = 0.96, g = 0.94, b = 0.84, a = 1.0 }
+local kGradientFlowerStartColor = flowerColors[1]
+local kGradientFlowerEndColor = flowerColors[#flowerColors]
+
+local inspectorFillColor = nil
+local inspectorGradientEndColor = nil
+local inspectorGradientEnabled = false
 
 -- Primary timing controls, in seconds.
 local kBloomStaggerDuration = 1.15 -- Total spread between first and last bloom
@@ -152,6 +158,15 @@ local kOutroDuration =
     + kOutroFlowerHoldDuration
     + kOutroDisappearDuration
 
+local function copyColor(color)
+    return {
+        r = color.r,
+        g = color.g,
+        b = color.b,
+        a = color.a,
+    }
+end
+
 local function getEffectState(ctx)
     local introProgress, outroProgress =
         mt.timeline.intro_outro_seconds(
@@ -183,6 +198,40 @@ local function getEffectState(ctx)
             )
     end
     return effectTime, disappearProgress
+end
+
+function OnPreLayout(ctx)
+    inspectorFillColor = copyColor(ctx.global.fill.color)
+    inspectorGradientEndColor =
+        copyColor(ctx.global.gradient.end_color)
+    inspectorGradientEnabled =
+        ctx.global.gradient.color_space ~= "none"
+
+    if inspectorGradientEnabled then
+        local effectTime = getEffectState(ctx)
+        local restorationDuration =
+            kIntroDuration - kConversionStartTime
+        local restorationProgress =
+            mt.ease.in_out_cubic(
+                mt.saturate(
+                    (effectTime - kConversionStartTime)
+                    / restorationDuration
+                )
+            )
+
+        ctx.global.fill.color =
+            mt.color.lerp(
+                kGradientFlowerStartColor,
+                inspectorFillColor,
+                restorationProgress
+            )
+        ctx.global.gradient.end_color =
+            mt.color.lerp(
+                kGradientFlowerEndColor,
+                inspectorGradientEndColor,
+                restorationProgress
+            )
+    end
 end
 
 local function assignRandomRanks(entries, key)
@@ -280,6 +329,20 @@ function OnLayout(ctx)
         local animatedOrder = animatedCharacterOrders[index]
 
         if animatedOrder ~= nil then
+            local inspectorCharacterFillUse = character.fill.use
+            local inspectorCharacterFillColor =
+                copyColor(character.fill.color)
+            local inspectorPartFills = {}
+            for partOffset = 0, character.part_count - 1 do
+                local partIndex = character.part_start + partOffset
+                local part = ctx.parts[partIndex]
+                inspectorPartFills[#inspectorPartFills + 1] = {
+                    part = part,
+                    use = part.fill.use,
+                    color = copyColor(part.fill.color),
+                }
+            end
+
             local bloomLocalTime, foldStartTime, glyphStartTime =
                 getCharacterTiming(
                     bloomRanks[index],
@@ -340,6 +403,10 @@ function OnLayout(ctx)
                 character.opacity = mt.saturate(bloomLocalTime / 0.12)
                 character.fill.color = flowerColors[flowerIndex]
 
+                for _, inspectorPartFill in ipairs(inspectorPartFills) do
+                    inspectorPartFill.part.fill.use = false
+                end
+
                 if character.part_count > 0 then
                     local firstPart = ctx.parts[character.part_start]
                     firstPart.pivot_x = 0.5
@@ -368,12 +435,41 @@ function OnLayout(ctx)
                 character.rotation =
                     mt.lerp(letterInitialRotation, 0.0, letterProgress)
                 character.opacity = 1.0
-                character.fill.color =
-                    mt.color.lerp(
-                        flowerColors[flowerIndex],
-                        kTextColor,
-                        letterProgress
-                    )
+
+                if inspectorCharacterFillUse then
+                    character.fill.use = true
+                    character.fill.color =
+                        mt.color.lerp(
+                            flowerColors[flowerIndex],
+                            inspectorCharacterFillColor,
+                            letterProgress
+                        )
+                elseif inspectorGradientEnabled
+                    or letterProgress >= 1.0
+                then
+                    character.fill.use = false
+                else
+                    character.fill.use = true
+                    character.fill.color =
+                        mt.color.lerp(
+                            flowerColors[flowerIndex],
+                            inspectorFillColor,
+                            letterProgress
+                        )
+                end
+
+                for _, inspectorPartFill in ipairs(inspectorPartFills) do
+                    inspectorPartFill.part.fill.use =
+                        inspectorPartFill.use
+                    if inspectorPartFill.use then
+                        inspectorPartFill.part.fill.color =
+                            mt.color.lerp(
+                                flowerColors[flowerIndex],
+                                inspectorPartFill.color,
+                                letterProgress
+                            )
+                    end
+                end
             end
 
             local outroDisappear =
