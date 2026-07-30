@@ -67,10 +67,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh issue comment "${{ steps.resolve.outputs.number }}" --body-file report.md
+          # `gallery:check` is consumed by this run whatever the outcome, so
+          # re-applying it is all it takes to ask for another check once the
+          # submission has been edited.
           if [ "${{ steps.validate.outcome }}" = "success" ]; then
             gh issue edit "${{ steps.resolve.outputs.number }}" \
-              --add-label "gallery:valid" --remove-label "gallery:invalid"
+              --add-label "gallery:valid" \
+              --remove-label "gallery:invalid" --remove-label "gallery:check"
           else
             gh issue edit "${{ steps.resolve.outputs.number }}" \
-              --add-label "gallery:invalid" --remove-label "gallery:valid"
+              --add-label "gallery:invalid" \
+              --remove-label "gallery:valid" --remove-label "gallery:check"
           fi
