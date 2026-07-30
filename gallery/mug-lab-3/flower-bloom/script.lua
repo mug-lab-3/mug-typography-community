@@ -3,7 +3,7 @@
 -- @recommend bg #18322b
 -- @title Flower Bloom
 -- @author Mug
--- @version 1.2
+-- @version 1.3
 -- @api_level 5
 --[[ @description
 Flowers bloom in a random order, gently sway, and become the text.
@@ -116,8 +116,6 @@ local kGradientFlowerEndColor = flowerColors[#flowerColors]
 local inspectorFillColor = nil
 local inspectorGradientEndColor = nil
 local inspectorGradientEnabled = false
-local inspectorStrokeWidth = nil
-local inspectorShadowEnabled = false
 
 -- Primary timing controls, in seconds.
 local kBloomStaggerDuration = 1.15 -- Total spread between first and last bloom
@@ -217,25 +215,24 @@ function OnPreLayout(ctx)
 
     local effectTime = getEffectState(ctx)
 
-    -- Capture the inspector outline and shadow once, before this hook starts
-    -- overwriting them: on later frames the values read back are the ones
-    -- written for the flowers, not the user's own settings.
-    if inspectorStrokeWidth == nil then
-        inspectorStrokeWidth = ctx.global.stroke.width
-        inspectorShadowEnabled = ctx.global.shadow.enabled
-    end
-
     -- Flowers are drawn as one solid silhouette, so an outline or a shadow
-    -- traces every petal seam and buries the shape. Both stay off until the
-    -- characters swap back to glyphs, then follow the inspector again.
+    -- traces every petal seam and buries the shape. Both are suppressed while
+    -- a flower is on screen and simply left alone once the text is in, so the
+    -- inspector values reach the frame untouched.
+    --
+    -- Nothing is cached across frames to restore them with: the Lua state
+    -- outlives the frame, so a remembered "inspector value" would be whatever
+    -- this hook had already written the last time it ran, and the outline
+    -- would stay at zero for good.
     local glyphSwapProgress =
         mt.saturate(
             (effectTime - kFirstGlyphSwapTime)
             / (kLastGlyphSwapTime - kFirstGlyphSwapTime)
         )
-    ctx.global.stroke.width = inspectorStrokeWidth * glyphSwapProgress
-    ctx.global.shadow.enabled =
-        inspectorShadowEnabled and glyphSwapProgress >= 1.0
+    if glyphSwapProgress < 1.0 then
+        ctx.global.stroke.width = ctx.global.stroke.width * glyphSwapProgress
+        ctx.global.shadow.enabled = false
+    end
 
     if inspectorGradientEnabled then
         local restorationDuration =
