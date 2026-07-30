@@ -83,8 +83,11 @@ jobs:
           title: >-
             ${{ steps.removal.outputs.removed && 'Remove' || 'Publish' }}
             gallery entry from #${{ steps.resolve.outputs.number }}
+          # `Closes` retires the request along with the merge, since merging is
+          # what fulfils it. The keyword only fires for pull requests targeting
+          # the default branch, which is what this one is opened against.
           body: |
-            Applies the request in #${{ steps.resolve.outputs.number }}.
+            Closes #${{ steps.resolve.outputs.number }}.
 
             ${{ steps.removal.outputs.removed
               && format('Removes `{0}`.', steps.removal.outputs.removed)
