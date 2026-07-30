@@ -3,13 +3,12 @@
 -- @recommend bg #18322b
 -- @title Flower Bloom
 -- @author Mug
--- @version 1.1
+-- @version 1.2
 -- @api_level 5
 --[[ @description
-Flowers bloom in a random order, gently sway, and transform into the
-original text while restoring its inspector colors. In the outro, the
-letters return to flowers before disappearing together.
-Version 1.1 respects user-selected text colors and gradients.
+Flowers bloom in a random order, gently sway, and become the text.
+In the outro they return to flowers and vanish together. Colors,
+gradient, outline and shadow follow the inspector once the text is in.
 ]]
 
 local kFlowerViewBox = { 0, 0, 1000, 1000 }
@@ -32,7 +31,7 @@ M 554.7 522.6 C 692.9 563.5 848.3 465.1 856.6 384.1 C 802.3 323.6 618.7 335.3 53
 M 495.4 559 C 499.2 703.1 640.8 820.4 720.4 803.4 C 761.2 733 693.4 562 557.5 513.8 C 527.5 513.4 504.2 530.3 495.4 559 Z
 M 442.5 513.8 C 306.6 562 238.8 733 279.6 803.4 C 359.2 820.4 500.8 703.1 504.6 559 C 495.8 530.3 472.5 513.4 442.5 513.8 Z
 M 469.1 449.6 C 381.3 335.3 197.7 323.6 143.4 384.1 C 151.7 465.1 307.1 563.5 445.3 522.6 C 469.9 505.4 478.8 478 469.1 449.6 Z
-M 610 500 C 610 439.2 560.8 390 500 390 C 439.2 390 390 439.2 390 500 C 390 560.8 439.2 610 500 610 C 560.8 610 610 560.8 610 500 Z
+M 610 500 C 610 560.8 560.8 610 500 610 C 439.2 610 390 560.8 390 500 C 390 439.2 439.2 390 500 390 C 560.8 390 610 439.2 610 500 Z
 ]], {
         view_box = kFlowerViewBox,
         em_scale = kFlowerEmScale,
@@ -50,7 +49,7 @@ M 430.1 523 C 315 552.5 175.2 653.9 162.3 695 C 204.4 704.3 362 633.9 445.2 549 
 M 428 485 C 313.5 453 141.8 470.9 110 500 C 141.8 529.1 313.5 547 428 515 C 446 505.6 446 494.4 428 485 Z
 M 445.2 451 C 362 366.1 204.4 295.7 162.3 305 C 175.2 346.1 315 447.5 430.1 477 C 450.4 477.9 456.1 468.1 445.2 451 Z
 M 477 430.1 C 447.5 315 346.1 175.2 305 162.3 C 295.7 204.4 366.1 362 451 445.2 C 468.1 456.1 477.9 450.4 477 430.1 Z
-M 600 500 C 600 444.8 555.2 400 500 400 C 444.8 400 400 444.8 400 500 C 400 555.2 444.8 600 500 600 C 555.2 600 600 555.2 600 500 Z
+M 600 500 C 600 555.2 555.2 600 500 600 C 444.8 600 400 555.2 400 500 C 400 444.8 444.8 400 500 400 C 555.2 400 600 444.8 600 500 Z
 ]], {
         view_box = kFlowerViewBox,
         em_scale = kFlowerEmScale,
@@ -59,9 +58,9 @@ M 600 500 C 600 444.8 555.2 400 500 400 C 444.8 400 400 444.8 400 500 C 400 555.
 M 543.5 458 C 645 339 572.5 179.2 500 118 C 427.5 179.2 355 339 456.5 458 Q 500 500 543.5 458 Z
 M 514.6 558.7 C 566.9 706.1 741.6 723.2 830.8 691 C 814.1 597.6 711.9 454.9 558.1 483.3 Q 500 500 514.6 558.7 Z
 M 441.9 483.3 C 288.1 454.9 185.9 597.6 169.2 691 C 258.4 723.2 433.1 706.1 485.4 558.7 Q 500 500 441.9 483.3 Z
-M 546.5 510.6 C 660.1 532.3 741.3 438 746.8 357.5 C 674.4 322 552.1 345.2 514.1 454.4 Q 500 500 546.5 510.6 Z
-M 467.6 535 C 392 622.5 433 740 500 785 C 567 740 608 622.5 532.4 535 Q 500 500 467.6 535 Z
-M 485.9 454.4 C 447.9 345.2 325.6 322 253.2 357.5 C 258.7 438 339.9 532.3 453.5 510.6 Q 500 500 485.9 454.4 Z
+M 546.5 510.6 Q 500 500 514.1 454.4 C 552.1 345.2 674.4 322 746.8 357.5 C 741.3 438 660.1 532.3 546.5 510.6 Z
+M 467.6 535 Q 500 500 532.4 535 C 608 622.5 567 740 500 785 C 433 740 392 622.5 467.6 535 Z
+M 485.9 454.4 Q 500 500 453.5 510.6 C 339.9 532.3 258.7 438 253.2 357.5 C 325.6 322 447.9 345.2 485.9 454.4 Z
 M 555 500 C 555 469.6 530.4 445 500 445 C 469.6 445 445 469.6 445 500 C 445 530.4 469.6 555 500 555 C 530.4 555 555 530.4 555 500 Z
 ]], {
         view_box = kFlowerViewBox,
@@ -84,18 +83,18 @@ M 382 490.3 C 262.3 461 165.4 482.5 97 500 C 165.4 517.6 262.3 539 382 509.8 Q 5
 M 394.7 445.8 C 310.8 379.4 225.7 367.4 164.6 361.1 C 212.2 399.8 281 451.5 387.3 463.9 Q 500 500 394.7 445.8 Z
 M 423.5 409.7 C 359.5 304.3 275.8 251 215 215 C 251 275.8 304.3 359.5 409.7 423.5 Q 500 500 423.5 409.7 Z
 M 463.9 387.3 C 451.5 281 399.8 212.2 361.1 164.6 C 367.4 225.7 379.4 310.8 445.8 394.7 Q 500 500 463.9 387.3 Z
-M 650 500 C 650 417.2 582.8 350 500 350 C 417.2 350 350 417.2 350 500 C 350 582.8 417.2 650 500 650 C 582.8 650 650 582.8 650 500 Z
+M 650 500 C 650 582.8 582.8 650 500 650 C 417.2 650 350 582.8 350 500 C 350 417.2 417.2 350 500 350 C 582.8 350 650 417.2 650 500 Z
 ]], {
         view_box = kFlowerViewBox,
         em_scale = kFlowerEmScale,
     }),
     mt.svg_path([[
-M 529 452 C 616 298.7 552.2 174.6 500 87 C 447.8 174.6 384 298.7 471 452 Q 500 500 529 452 Z
-M 553.1 495.9 C 696.7 492.7 759.7 397.9 801.4 326 C 718.3 326.1 604.7 333.3 530.1 456.1 Q 500 500 553.1 495.9 Z
-M 527.1 549.1 C 616.3 701.1 755.7 707.9 857.7 706.5 C 807.9 617.5 732.3 500.2 556.1 498.9 Q 500 500 527.1 549.1 Z
-M 477 548 C 408 674 458.6 776 500 848 C 541.4 776 592 674 523 548 Q 500 500 477 548 Z
-M 443.9 498.9 C 267.7 500.2 192.1 617.5 142.3 706.5 C 244.3 707.9 383.7 701.1 472.9 549.1 Q 500 500 443.9 498.9 Z
-M 469.9 456.1 C 395.3 333.3 281.7 326.1 198.6 326 C 240.3 397.9 303.3 492.7 446.9 495.9 Q 500 500 469.9 456.1 Z
+M 529 452 Q 500 500 471 452 C 384 298.7 447.8 174.6 500 87 C 552.2 174.6 616 298.7 529 452 Z
+M 553.1 495.9 Q 500 500 530.1 456.1 C 604.7 333.3 718.3 326.1 801.4 326 C 759.7 397.9 696.7 492.7 553.1 495.9 Z
+M 527.1 549.1 Q 500 500 556.1 498.9 C 732.3 500.2 807.9 617.5 857.7 706.5 C 755.7 707.9 616.3 701.1 527.1 549.1 Z
+M 477 548 Q 500 500 523 548 C 592 674 541.4 776 500 848 C 458.6 776 408 674 477 548 Z
+M 443.9 498.9 Q 500 500 472.9 549.1 C 383.7 701.1 244.3 707.9 142.3 706.5 C 192.1 617.5 267.7 500.2 443.9 498.9 Z
+M 469.9 456.1 Q 500 500 446.9 495.9 C 303.3 492.7 240.3 397.9 198.6 326 C 281.7 326.1 395.3 333.3 469.9 456.1 Z
 M 570 500 C 570 461.3 538.7 430 500 430 C 461.3 430 430 461.3 430 500 C 430 538.7 461.3 570 500 570 C 538.7 570 570 538.7 570 500 Z
 ]], {
         view_box = kFlowerViewBox,
@@ -117,6 +116,8 @@ local kGradientFlowerEndColor = flowerColors[#flowerColors]
 local inspectorFillColor = nil
 local inspectorGradientEndColor = nil
 local inspectorGradientEnabled = false
+local inspectorStrokeWidth = nil
+local inspectorShadowEnabled = false
 
 -- Primary timing controls, in seconds.
 local kBloomStaggerDuration = 1.15 -- Total spread between first and last bloom
@@ -157,6 +158,13 @@ local kOutroDuration =
     kOutroTextToFlowerDuration
     + kOutroFlowerHoldDuration
     + kOutroDisappearDuration
+-- Stroke and shadow are global, so they cannot follow the per-character swap.
+-- They stay off while any flower is on screen and return over the window in
+-- which the characters swap to glyphs, from the first swap to the last.
+local kFirstGlyphSwapTime =
+    kConversionStartTime + kFlowerToLetterFoldDuration
+local kLastGlyphSwapTime =
+    kFirstGlyphSwapTime + kTextRevealStaggerDuration
 
 local function copyColor(color)
     return {
@@ -207,8 +215,29 @@ function OnPreLayout(ctx)
     inspectorGradientEnabled =
         ctx.global.gradient.color_space ~= "none"
 
+    local effectTime = getEffectState(ctx)
+
+    -- Capture the inspector outline and shadow once, before this hook starts
+    -- overwriting them: on later frames the values read back are the ones
+    -- written for the flowers, not the user's own settings.
+    if inspectorStrokeWidth == nil then
+        inspectorStrokeWidth = ctx.global.stroke.width
+        inspectorShadowEnabled = ctx.global.shadow.enabled
+    end
+
+    -- Flowers are drawn as one solid silhouette, so an outline or a shadow
+    -- traces every petal seam and buries the shape. Both stay off until the
+    -- characters swap back to glyphs, then follow the inspector again.
+    local glyphSwapProgress =
+        mt.saturate(
+            (effectTime - kFirstGlyphSwapTime)
+            / (kLastGlyphSwapTime - kFirstGlyphSwapTime)
+        )
+    ctx.global.stroke.width = inspectorStrokeWidth * glyphSwapProgress
+    ctx.global.shadow.enabled =
+        inspectorShadowEnabled and glyphSwapProgress >= 1.0
+
     if inspectorGradientEnabled then
-        local effectTime = getEffectState(ctx)
         local restorationDuration =
             kIntroDuration - kConversionStartTime
         local restorationProgress =

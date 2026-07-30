@@ -1,10 +1,10 @@
 {
   "title": "Flower Bloom",
-  "description": "Flowers bloom in a random order, gently sway, and transform into the\noriginal text while restoring its inspector colors. In the outro, the\nletters return to flowers before disappearing together.\nVersion 1.1 respects user-selected text colors and gradients.",
+  "description": "Flowers bloom in a random order, gently sway, and become the text.\nIn the outro they return to flowers and vanish together. Colors,\ngradient, outline and shadow follow the inspector once the text is in.",
   "author": "Mug",
   "submitter": "mug-lab-3",
-  "version": "1.1",
+  "version": "1.2",
   "apiLevel": 5,
-  "sourceUrl": "https://github.com/mug-lab-3/mug-typography-community/issues/6",
-  "publishedAt": "2026-07-30T06:49:39.331Z"
+  "sourceUrl": "https://github.com/mug-lab-3/mug-typography-community/issues/8",
+  "publishedAt": "2026-07-30T18:29:49.434Z"
 }
