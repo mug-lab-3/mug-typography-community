@@ -7,8 +7,8 @@
 -- @recommend text "STARLIGHT"
 -- @recommend bg #10152b
 --[[ @description
-Softly pulsing gold stars sit behind individual characters with automatic
-spacing and full Inspector alignment, margin, and transform support.
+Gold stars tumble in to reveal the text with a glint,
+drift softly, and then burst outward, taking the text with them.
 ]]
 
 local kStarScale = 1.6

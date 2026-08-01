@@ -3,14 +3,14 @@
     "name": "star-backdrop.lua",
     "scriptPath": "gallery/mug-lab-3/star-backdrop/script.lua",
     "title": "Star Backdrop",
-    "description": "Softly pulsing gold stars sit behind individual characters with automatic\nspacing and full Inspector alignment, margin, and transform support.",
+    "description": "Gold stars tumble in to reveal the text with a glint,\ndrift softly, and then burst outward, taking the text with them.",
     "author": "Mug",
     "version": "1.0",
     "apiLevel": 6,
     "thumbnailPath": "gallery/mug-lab-3/star-backdrop/thumbnail.webp",
     "videoPath": "gallery/mug-lab-3/star-backdrop/preview.webm",
-    "sourceUrl": "https://github.com/mug-lab-3/mug-typography-community/issues/14",
-    "publishedAt": "2026-08-01T13:03:56.568Z"
+    "sourceUrl": "https://github.com/mug-lab-3/mug-typography-community/issues/16",
+    "publishedAt": "2026-08-01T13:19:32.007Z"
   },
   {
     "name": "flower-bloom.lua",
