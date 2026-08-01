@@ -2,7 +2,7 @@
 -- @duration 6.0
 -- @title Star Backdrop
 -- @author Mug
--- @version 1.0
+-- @version 1.1
 -- @api_level 6
 -- @recommend text "STARLIGHT"
 -- @recommend bg #10152b
@@ -84,6 +84,29 @@ local kTransparentColor = { r = 0.0, g = 0.0, b = 0.0, a = 0.0 }
 
 local activeMarkerCount = 0
 local duplicateEnabled = false
+local nonControlCodepoints = {}
+
+local function isWhitespaceCodepoint(codepoint)
+    return codepoint == 32       -- Space
+        or codepoint == 9        -- Tab
+        or codepoint == 160      -- No-break space
+        or codepoint == 0x3000   -- Ideographic space
+end
+
+local function isCharacterVisible(originalCharacter, pairIndex)
+    if originalCharacter.part_count == 0 then
+        return false
+    end
+    local codepoint = nonControlCodepoints[pairIndex]
+    if codepoint and isWhitespaceCodepoint(codepoint) then
+        return false
+    end
+    local geometry = originalCharacter.geometry
+    if geometry.bounds_width == 0 and geometry.bounds_height == 0 then
+        return false
+    end
+    return true
+end
 
 local function copyColor(color)
     return { r = color.r, g = color.g, b = color.b, a = color.a }
@@ -433,9 +456,11 @@ end
 
 function OnPreLayout(ctx)
     local originalText = ctx.global.text
+    nonControlCodepoints = {}
     local originalCodepointCount = 0
     for _, codepoint in utf8.codes(originalText) do
         if codepoint ~= 10 and codepoint ~= 13 then
+            table.insert(nonControlCodepoints, codepoint)
             originalCodepointCount = originalCodepointCount + 1
         end
     end
@@ -525,7 +550,7 @@ function OnLayout(ctx)
         local markerCharacter = ctx.chars[pairIndex]
         local originalCharacter = ctx.chars[firstOriginalIndex + pairIndex - 1]
 
-        if originalCharacter.part_count > 0 then
+        if isCharacterVisible(originalCharacter, pairIndex) then
             local originalBounds = transformedCharacterBounds(ctx, originalCharacter)
             local sway = idleSway(ctx, pairIndex)
             local motion = starMotion(
@@ -594,6 +619,9 @@ function OnLayout(ctx)
             }
         else
             markerCharacter.opacity = 0.0
+            markerCharacter.fill.use = false
+            markerCharacter.stroke.use = false
+            markerCharacter.shadow.use = false
         end
     end
 end
@@ -622,10 +650,13 @@ function OnPath(ctx)
         return
     end
 
+    local firstOriginalIndex = activeMarkerCount + 1
     for markerIndex = 1, activeMarkerCount do
+        local originalCharacter = ctx.chars[firstOriginalIndex + markerIndex - 1]
+        local isVisible = originalCharacter and isCharacterVisible(originalCharacter, markerIndex)
         local markerParts = ctx.paths:character(markerIndex)
         for partIndex, markerPart in ipairs(markerParts) do
-            if partIndex == 1 then
+            if isVisible and partIndex == 1 then
                 replaceWithStar(markerPart.path)
             else
                 markerPart.path:clear()
