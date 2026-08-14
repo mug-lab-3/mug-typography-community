@@ -1,5 +1,18 @@
 [
   {
+    "name": "fast-forward.lua",
+    "scriptPath": "gallery/mug-lab-3/fast-forward/script.lua",
+    "title": "Fast Forward",
+    "description": "A fast-forward mark whose triangles light up left to right, over and over,\nwith your text alongside it.",
+    "author": "Mug",
+    "version": "1.0",
+    "apiLevel": 9,
+    "thumbnailPath": "gallery/mug-lab-3/fast-forward/thumbnail.webp",
+    "videoPath": "gallery/mug-lab-3/fast-forward/preview.webm",
+    "sourceUrl": "https://github.com/mug-lab-3/mug-typography-community/issues/20",
+    "publishedAt": "2026-08-14T19:50:54.860Z"
+  },
+  {
     "name": "star-backdrop.lua",
     "scriptPath": "gallery/mug-lab-3/star-backdrop/script.lua",
     "title": "Star Backdrop",
