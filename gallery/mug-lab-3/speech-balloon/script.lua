@@ -3,14 +3,14 @@
 -- @recommend text "Hello there!\nLovely day, isn't it?"
 -- @title Speech Balloon
 -- @author Mug
--- @version 1.0
+-- @version 1.1
 -- @api_level 9
 -- @input number 1 "Style (1=Speech 2=Thought)" default=1
 -- @input number 2 "Tail Side (1=Left 2=Right)" default=1
 -- @input number 3 "Tail Position (0-1 around edge)" default=0.25
 -- @input number 4 "Padding X" default=1.0
 -- @input number 5 "Padding Y" default=1.0
--- @input number 6 "Tail Sink (em)" default=0.12
+-- @input number 6 "Tail Width (em)" default=0.18
 -- @input number 7 "Tail Length (em)" default=0.42
 -- @input number 8 "Outline Width (em)" default=0.075
 -- @input number 9 "Pop Duration" default=0.45
@@ -48,17 +48,20 @@ local kCornerRadiusEm = 0.28
 local kMinimumOutlineWidthEm = 0.0
 local kMaximumOutlineWidthEm = 0.4
 
-local kTailBaseHalfEm = 0.18
--- Tail Sink pushes the tail's base inward, in em. A straight edge needs almost
--- none, but the outline curves away from the base near a corner, so more sink is
--- needed there to keep the tail from reading as a detached triangle.
-local kMinimumTailSinkEm = 0.0
-local kMaximumTailSinkEm = 0.35
+-- How far the tail's base sits inside the body, in em. Fixed rather than exposed:
+-- a straight edge needs almost none, but the outline curves away from the base
+-- near a corner, and this is deep enough to bury that gap anywhere on the
+-- outline. Any deeper only wastes tail length inside the balloon.
+local kTailSinkEm = 0.3
+-- Tail Width is the half-width of the base, in em, which is what sets how sharp
+-- the tail looks: narrow gives a spike, wide gives a blunt wedge.
+local kMinimumTailWidthEm = 0.03
+local kMaximumTailWidthEm = 0.9
 -- Tail Length is how far the tip reaches past the outline, in em.
 local kMinimumTailLengthEm = 0.05
 -- Below this animated length the tail is inside the body and not worth drawing.
 local kMinimumVisibleTailEm = 0.001
-local kMaximumTailLengthEm = 2.0
+local kMaximumTailLengthEm = 4.0
 -- How far the tip leans along the outline, as a fraction of the tail length.
 local kTailLeanRatio = 0.55
 -- Line segments used to trace the thought body, whose wobble has no closed form.
@@ -73,8 +76,12 @@ local kEllipseInscribeRatio = 1.08
 -- Bulge depth as a fraction of the balloon's smaller half-axis.
 local kThoughtWobbleRatio = 0.075
 local kThoughtDotRadiiEm = { 0.13, 0.09, 0.055 }
-local kThoughtDotGapEm = 0.11
 local kThoughtDotDropEm = 0.16
+-- Divisors that map the tail controls onto the dot trail. Both are the tail's
+-- own default over the dot value it should reproduce, so the default Length and
+-- Width give the trail the spacing and size it had as fixed constants.
+local kTailLengthToDotGap = 3.82
+local kTailWidthAtDotUnitScale = 0.18
 
 -- Point in the pop where the text starts appearing, as a fraction of it. The
 -- balloon is near full size well before the pop settles, so the text can begin
@@ -122,7 +129,7 @@ local kFirstTextIndex = 3
 
 local balloonMarker = ""
 local tailMarker = ""
-local balloonTailSinkEm = 0.12
+local balloonTailWidthEm = 0.18
 local balloonTailLengthEm = 0.42
 local balloonOutlineWidthEm = 0.075
 -- Global transform captured in OnPreLayout, where it is readable.
@@ -313,14 +320,13 @@ end
 --- The tail lives in its own glyph, overlapping the body rather than being
 --- stitched into it. Their shared mouth is stroked, but the body's fill is
 --- painted afterwards (see ctx.global.stroke.order) and covers it, so only the
---- outer silhouette shows. `sinkEm` pushes the join deeper into the body, which
---- also pulls it clear of the anti-aliased edge where a sliver of that stroke
---- can otherwise peek through.
-local function appendSpeechTail(path, halfWidth, halfHeight, radius, position, side, style, sinkEm, lengthEm)
-    local lean = side == kSideLeft and 1.0 or -1.0
-    local baseHalf = kTailBaseHalfEm * kUnitsPerEm
+--- outer silhouette shows. The base is sunk into the body by a fixed amount,
+--- which also pulls the join clear of the anti-aliased edge where a sliver of
+--- that stroke can otherwise peek through.
+local function appendSpeechTail(path, halfWidth, halfHeight, radius, position, side, style, widthEm, lengthEm)
+    local baseHalf = widthEm * kUnitsPerEm
     local drop = lengthEm * kUnitsPerEm
-    local sink = sinkEm * kUnitsPerEm
+    local sink = kTailSinkEm * kUnitsPerEm
 
     local anchorX, anchorY, normalX, normalY =
         balloonOutlinePoint(position, halfWidth, halfHeight, radius, style)
@@ -377,9 +383,14 @@ end
 
 --- Trails the thought dots away from `position` on the outline, following the
 --- same outward-and-leaning direction the speech tail uses.
-local function appendThoughtDots(path, halfWidth, halfHeight, position, side)
+local function appendThoughtDots(path, halfWidth, halfHeight, position, side, widthEm, lengthEm)
     local lean = side == kSideLeft and 1.0 or -1.0
-    local gap = kThoughtDotGapEm * kUnitsPerEm
+    -- The two tail controls carry over to this style: Length spaces the dots and
+    -- Width scales them. Both are divided by the defaults that produced the
+    -- original trail, so the two designs start at the same visual weight and a
+    -- given setting reads the same after switching between them.
+    local gap = lengthEm / kTailLengthToDotGap * kUnitsPerEm
+    local dotScale = widthEm / kTailWidthAtDotUnitScale
 
     local anchorX, anchorY, normalX, normalY = thoughtOutlinePoint(position, halfWidth, halfHeight)
     local tangentX = -normalY
@@ -397,7 +408,7 @@ local function appendThoughtDots(path, halfWidth, halfHeight, position, side)
 
     local distance = kThoughtDotDropEm * kUnitsPerEm
     for _, radiusEm in ipairs(kThoughtDotRadiiEm) do
-        local radius = radiusEm * kUnitsPerEm
+        local radius = radiusEm * dotScale * kUnitsPerEm
         distance = distance + radius + gap * 0.5
         appendCircle(path, anchorX + travelX * distance, anchorY + travelY * distance, radius)
         distance = distance + radius + gap * 0.5
@@ -483,7 +494,8 @@ function OnLayout(ctx)
 
     local paddingScaleX = math.max(ctx.inputs.numbers[4], 0.0)
     local paddingScaleY = math.max(ctx.inputs.numbers[5], 0.0)
-    balloonTailSinkEm = mt.clamp(ctx.inputs.numbers[6], kMinimumTailSinkEm, kMaximumTailSinkEm)
+    balloonTailWidthEm =
+        mt.clamp(ctx.inputs.numbers[6], kMinimumTailWidthEm, kMaximumTailWidthEm)
     -- The configured length; the animated portion is applied once the pop
     -- progress is known.
     local tailLengthEm =
@@ -795,7 +807,9 @@ function OnPath(ctx)
                 balloonHalfWidthUnits,
                 balloonHalfHeightUnits,
                 balloonTailPosition,
-                balloonTailSide)
+                balloonTailSide,
+                balloonTailWidthEm,
+                balloonTailLengthEm)
         elseif balloonTailLengthEm > kMinimumVisibleTailEm then
             -- A retracted tail is buried inside the body, so skip it entirely
             -- rather than emit a degenerate sliver.
@@ -807,7 +821,7 @@ function OnPath(ctx)
                 balloonTailPosition,
                 balloonTailSide,
                 balloonStyle,
-                balloonTailSinkEm,
+                balloonTailWidthEm,
                 balloonTailLengthEm)
         end
     end
