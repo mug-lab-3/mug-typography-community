@@ -1,5 +1,18 @@
 [
   {
+    "name": "speech-balloon.lua",
+    "scriptPath": "gallery/mug-lab-3/speech-balloon/script.lua",
+    "title": "Speech Balloon",
+    "description": "A speech or thought balloon pops in behind the text and auto-fits its width.\nThe tail travels anywhere around the outline. 2D only: 3D projection is forced off.",
+    "author": "Mug",
+    "version": "1.0",
+    "apiLevel": 9,
+    "thumbnailPath": "gallery/mug-lab-3/speech-balloon/thumbnail.webp",
+    "videoPath": "gallery/mug-lab-3/speech-balloon/preview.webm",
+    "sourceUrl": "https://github.com/mug-lab-3/mug-typography-community/issues/24",
+    "publishedAt": "2026-08-16T08:11:50.892Z"
+  },
+  {
     "name": "bounce-stream.lua",
     "scriptPath": "gallery/mug-lab-3/bounce-stream/script.lua",
     "title": "Bounce Stream",
