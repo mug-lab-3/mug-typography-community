@@ -3,7 +3,7 @@
 -- @recommend text "Hello there!\nLovely day, isn't it?"
 -- @title Speech Balloon
 -- @author Mug
--- @version 1.1
+-- @version 1.4
 -- @api_level 9
 -- @input number 1 "Style (1=Speech 2=Thought)" default=1
 -- @input number 2 "Tail Side (1=Left 2=Right)" default=1
@@ -13,7 +13,8 @@
 -- @input number 6 "Tail Width (em)" default=0.18
 -- @input number 7 "Tail Length (em)" default=0.42
 -- @input number 8 "Outline Width (em)" default=0.075
--- @input number 9 "Pop Duration" default=0.45
+-- @input number 9 "Roundness (0-1)" default=0.5
+-- @input number 10 "Pop Duration" default=0.45
 -- @input color 1 "Balloon Fill" default={0.24, 0.28, 0.38, 1.0}
 -- @input color 2 "Balloon Outline" default={0.72, 0.78, 0.94, 1.0}
 --[[ @description
@@ -42,7 +43,18 @@ local kPaddingXEm = 0.55
 local kPaddingYEm = 0.45
 local kMinimumHalfWidthEm = 0.6
 local kMinimumHalfHeightEm = 0.45
-local kCornerRadiusEm = 0.28
+-- Roundness drives the corner radius here and the thought outline's squareness
+-- and waviness on the other design, so one control reads the same either way:
+-- low is boxy, high is soft. The ceiling reaches past what most balloons can
+-- use; appendRoundedBody clamps the radius to half the shorter side, so a high
+-- setting simply rounds the ends off completely instead of breaking the shape.
+-- Three stops rather than two: the ceilings reach far enough that a plain
+-- min-to-max ramp would leave the default nowhere near the shape this balloon
+-- is tuned around. Roundness 0.5 lands on the middle stop, so the default look
+-- is unchanged and the extra range is spent above it.
+local kMinimumCornerRadiusEm = 0.0
+local kDefaultCornerRadiusEm = 0.28
+local kMaximumCornerRadiusEm = 2.0
 -- Outline Width in em. Zero leaves the balloon unstroked; the ceiling keeps a
 -- heavy outline from swallowing the corner radius.
 local kMinimumOutlineWidthEm = 0.0
@@ -70,11 +82,21 @@ local kOutlineSegmentCount = 96
 -- Superellipse exponent for the thought body. 2 is a plain ellipse; higher
 -- values square it up, filling the corners the text reaches into. Kept well
 -- below the point where the outline reads as a rectangle.
-local kThoughtSuperellipseExponent = 2.8
+-- Exponent range for the thought body, ordered so Roundness reads the same as
+-- it does for corners: a low setting gives the high exponent that squares the
+-- outline up, a high setting relaxes it toward an ellipse.
+local kThoughtSquareExponent = 12.0
+local kThoughtDefaultExponent = 2.8
+local kThoughtRoundExponent = 1.6
 -- Padding factor still needed on top of the superellipse to clear its corners.
 local kEllipseInscribeRatio = 1.08
 -- Bulge depth as a fraction of the balloon's smaller half-axis.
-local kThoughtWobbleRatio = 0.075
+-- Wobble depth at the extremes of Roundness. A squared-up outline with deep
+-- waves reads as damage rather than as a drawn line, so the ripple grows with
+-- the roundness that gives it room.
+local kThoughtMinimumWobbleRatio = 0.0
+local kThoughtDefaultWobbleRatio = 0.075
+local kThoughtMaximumWobbleRatio = 0.22
 local kThoughtDotRadiiEm = { 0.13, 0.09, 0.055 }
 local kThoughtDotDropEm = 0.16
 -- Divisors that map the tail controls onto the dot trail. Both are the tail's
@@ -113,6 +135,8 @@ local kMinimumPopDuration = 0.05
 local kCircleControlRatio = 0.5523
 -- A pivot field of 0.5 means no displacement from the global position.
 local kPivotNeutral = 0.5
+-- Roundness value that reproduces the balloon's tuned defaults.
+local kRoundnessMidpoint = 0.5
 
 -- The balloon reaches full opacity a third of the way through the pop (see the
 -- opacity ramp in OnLayout), so the tail waits until then to start growing.
@@ -132,6 +156,10 @@ local tailMarker = ""
 local balloonTailWidthEm = 0.18
 local balloonTailLengthEm = 0.42
 local balloonOutlineWidthEm = 0.075
+-- Derived from Roundness in OnLayout and read while building the outline.
+local balloonRoundness = 0.5
+local balloonThoughtExponent = 2.8
+local balloonThoughtWobble = 0.075
 -- Global transform captured in OnPreLayout, where it is readable.
 local globalScale = 1.0
 local globalStretchX = 1.0
@@ -143,10 +171,22 @@ local globalPivotY = 0.5
 -- Recomputed every frame in OnLayout and consumed by OnPath.
 local balloonHalfWidthUnits = kMinimumHalfWidthEm * kUnitsPerEm
 local balloonHalfHeightUnits = kMinimumHalfHeightEm * kUnitsPerEm
-local balloonCornerRadiusUnits = kCornerRadiusEm * kUnitsPerEm
+local balloonCornerRadiusUnits = kDefaultCornerRadiusEm * kUnitsPerEm
 local balloonStyle = kStyleSpeech
 local balloonTailSide = kSideRight
 local balloonTailPosition = kTailPositionBottom
+
+--- Maps a 0..1 control onto three stops, with 0.5 landing exactly on `middle`.
+--- Lets a control keep its tuned default while reaching much further at one end.
+local function lerpThroughMiddle(low, middle, high, amount)
+    local result
+    if amount <= kRoundnessMidpoint then
+        result = mt.lerp(low, middle, amount / kRoundnessMidpoint)
+    else
+        result = mt.lerp(middle, high, (amount - kRoundnessMidpoint) / (1.0 - kRoundnessMidpoint))
+    end
+    return result
+end
 
 --- Samples the rounded-rectangle outline at a 0..1 loop position.
 --- Returns the point on the outline and the outward unit normal there.
@@ -229,7 +269,7 @@ local function thoughtBulge(angle, radius)
     -- Proportional to the balloon, not a fixed em: a multi-line balloon is far
     -- taller than a single line, and a constant bulge disappears into it,
     -- leaving what should be a hand-drawn cloud looking like a plain ellipse.
-    local wobble = radius * kThoughtWobbleRatio
+    local wobble = radius * balloonThoughtWobble
     return math.sin(angle * 5.0) * wobble + math.sin(angle * 3.0 + 1.1) * wobble * 0.6
 end
 
@@ -246,15 +286,15 @@ local function thoughtOutlinePoint(position, halfWidth, halfHeight)
     -- without having to inflate the whole balloon to reach them.
     local cosine = math.cos(angle)
     local sine = math.sin(angle)
-    local shapedX = (math.abs(cosine) ^ kThoughtSuperellipseExponent)
-    local shapedY = (math.abs(sine) ^ kThoughtSuperellipseExponent)
-    local radius = (shapedX + shapedY) ^ (-1.0 / kThoughtSuperellipseExponent)
+    local shapedX = (math.abs(cosine) ^ balloonThoughtExponent)
+    local shapedY = (math.abs(sine) ^ balloonThoughtExponent)
+    local radius = (shapedX + shapedY) ^ (-1.0 / balloonThoughtExponent)
     local x = cosine * radius * (halfWidth + bulge)
     local y = sine * radius * (halfHeight + bulge)
 
     -- Outward normal of the superellipse: the gradient of |x/a|^n + |y/b|^n,
     -- which flattens along the straightened sides just as the outline does.
-    local exponent = kThoughtSuperellipseExponent
+    local exponent = balloonThoughtExponent
     local normalX = (math.abs(cosine * radius) ^ (exponent - 1.0)) / halfWidth
     local normalY = (math.abs(sine * radius) ^ (exponent - 1.0)) / halfHeight
     normalX = cosine >= 0.0 and normalX or -normalX
@@ -502,20 +542,38 @@ function OnLayout(ctx)
         mt.clamp(ctx.inputs.numbers[7], kMinimumTailLengthEm, kMaximumTailLengthEm)
     balloonOutlineWidthEm =
         mt.clamp(ctx.inputs.numbers[8], kMinimumOutlineWidthEm, kMaximumOutlineWidthEm)
-    local popDuration = math.max(ctx.inputs.numbers[9], kMinimumPopDuration)
+    balloonRoundness = mt.saturate(ctx.inputs.numbers[9])
+    balloonThoughtExponent = lerpThroughMiddle(
+        kThoughtSquareExponent, kThoughtDefaultExponent, kThoughtRoundExponent, balloonRoundness)
+    balloonThoughtWobble = lerpThroughMiddle(
+        kThoughtMinimumWobbleRatio, kThoughtDefaultWobbleRatio, kThoughtMaximumWobbleRatio,
+        balloonRoundness)
+    local popDuration = math.max(ctx.inputs.numbers[10], kMinimumPopDuration)
 
     -- The balloon only animates over the tail end of the outro (everything past
     -- balloonOutroStart), so a fixed outro span would run it faster than the pop
     -- that opened it. Stretch the span until the balloon's share matches the pop
     -- and the exit takes as long as the entrance.
+    -- Reveal timing, shared by the intro and its mirrored outro.
+    local revealStartSeconds = popDuration * kTextRevealStart
+    local revealDurationSeconds =
+        math.max(popDuration * kTextRevealSpan, kMinimumRevealDuration)
+
     local balloonOutroStart = kOutroTextFraction - kOutroOverlap
     local outroDuration = popDuration / (1.0 - balloonOutroStart)
     local _, outroAmount =
         mt.timeline.intro_outro_seconds(ctx, popDuration, outroDuration, kFallbackClipLength)
 
-    -- Split the outro so the text clears first and the balloon only closes once
-    -- it is empty.
-    local textOutroAmount = mt.saturate(outroAmount / kOutroTextFraction)
+    -- Mirror the intro's reveal rather than splitting the outro by a fixed
+    -- fraction: the text takes the same share of the span it took on the way in,
+    -- measured from the end, so the two ends read as reverses of each other. A
+    -- fixed fraction pulled the text off screen well before its entrance timing
+    -- would suggest.
+    local outroSeconds = outroAmount * outroDuration
+    local textOutroStartSeconds =
+        math.max(outroDuration - revealStartSeconds - revealDurationSeconds, 0.0)
+    local textOutroAmount =
+        mt.saturate((outroSeconds - textOutroStartSeconds) / revealDurationSeconds)
     local balloonOutroAmount =
         mt.saturate((outroAmount - balloonOutroStart) / (1.0 - balloonOutroStart))
 
@@ -545,11 +603,8 @@ function OnLayout(ctx)
         local character = ctx.chars[index]
         local position = index - kFirstTextIndex
         local order = textCharacterCount > 1 and position / (textCharacterCount - 1) or 0.0
-        local revealDelay = popDuration * kTextRevealStart + order * kTextRevealStagger
-        -- The reveal span follows the pop: with a fixed span a long pop would
-        -- hold an empty balloon for its whole length before the text answered.
-        local revealDuration = math.max(popDuration * kTextRevealSpan, kMinimumRevealDuration)
-        local reveal = mt.saturate((ctx.time - revealDelay) / revealDuration)
+        local revealDelay = revealStartSeconds + order * kTextRevealStagger
+        local reveal = mt.saturate((ctx.time - revealDelay) / revealDurationSeconds)
         local eased = mt.ease.out_cubic(reveal)
 
         -- Opacity leads the movement so the text registers as soon as the balloon
@@ -564,32 +619,11 @@ function OnLayout(ctx)
 
         character.offset_x = 0.5
         character.offset_y = 0.5 + (1.0 - eased) * kTextRiseEm * emToCanvasY
-        character.opacity = fadeIn * (1.0 - mt.ease.in_quad(textOutroAmount))
-    end
-
-    -- Close the leading the same way: each line moves toward the block centre in
-    -- proportion to the shrink, so the whole block scales rather than just the
-    -- glyphs inside each line.
-    if blockBefore ~= nil and textScale < 1.0 then
-        for _, line in ipairs(mt.layout.group_by_line(ctx)) do
-            local targets = {}
-            for _, character in ipairs(line.items) do
-                if character.index >= kFirstTextIndex then
-                    targets[#targets + 1] = character.index
-                end
-            end
-            if #targets > 0 then
-                local lineBounds = mt.layout.measure_bounds_2d(ctx, targets)
-                if lineBounds ~= nil then
-                    local fromCentre = lineBounds.center_y - blockBefore.center_y
-                    local shift = fromCentre * (textScale - 1.0)
-                    for _, index in ipairs(targets) do
-                        local character = ctx.chars[index]
-                        character.offset_y = character.offset_y + shift
-                    end
-                end
-            end
-        end
+        -- The fade out mirrors the fade in. The lead that makes the intro rush
+        -- to full opacity is deliberately not repeated here: the outro window is
+        -- already positioned to match, and leading it again would pull the text
+        -- off early -- the very thing this timing exists to avoid.
+        character.opacity = fadeIn * (1.0 - textOutroAmount)
     end
 
     -- Measure the text alone; including the balloon would feed its own size back
@@ -629,6 +663,10 @@ function OnLayout(ctx)
     -- by the same factor the glyphs shrank.
     local blockBefore = mt.layout.measure_bounds_2d(ctx, textIndices)
 
+    -- Which edge the host holds fixed, so the drift correction below can hold the
+    -- same one instead of always recentring.
+    local horizontalAlignment = ctx.global.h_align
+
     -- targets restricts each call to one line. Passing only an anchor would
     -- still reflow every line, pinning the others to their first character, and
     -- each call would undo the previous one's centering.
@@ -640,30 +678,47 @@ function OnLayout(ctx)
             end
         end
         if #targets > 0 then
+            -- Anchor the line on the character sitting at the edge the alignment
+            -- holds fixed. Reflow keeps that character's origin exactly where it
+            -- is and rebuilds the rest around it, so every line pivots about the
+            -- same margin the host aligned it to and none of them drift apart as
+            -- the text scales. A mid-line anchor would instead leave each line
+            -- pinned at its own middle, which differs per line once the lines
+            -- have different lengths.
+            local anchorIndex
+            if horizontalAlignment == "left" then
+                anchorIndex = targets[1]
+            elseif horizontalAlignment == "right" then
+                anchorIndex = targets[#targets]
+            else
+                anchorIndex = targets[math.ceil(#targets / 2)]
+            end
+
             local before = mt.layout.measure_bounds_2d(ctx, targets)
-            mt.layout.reflow(ctx, 0.0, {
-                targets = targets,
-                anchor = targets[math.ceil(#targets / 2)],
-            })
-            -- Reflow rebuilds the line around one whole character, so the line
-            -- lands wherever that anchor happens to sit: with an odd count it is
-            -- half a glyph off centre, and tracking moves it further. Put the
-            -- line back on the centre it had before the reflow.
-            local after = mt.layout.measure_bounds_2d(ctx, targets)
-            if before ~= nil and after ~= nil then
-                local drift = after.center_x - before.center_x
-                for _, index in ipairs(targets) do
-                    local character = ctx.chars[index]
-                    character.offset_x = character.offset_x - drift
+            mt.layout.reflow(ctx, 0.0, { targets = targets, anchor = anchorIndex })
+
+            -- Centre alignment still needs the nudge: its anchor can only be a
+            -- whole character, so on an odd count it sits half a glyph off the
+            -- true centre and the line creeps as it scales.
+            if horizontalAlignment ~= "left" and horizontalAlignment ~= "right" then
+                local after = mt.layout.measure_bounds_2d(ctx, targets)
+                if before ~= nil and after ~= nil then
+                    local drift = after.center_x - before.center_x
+                    for _, index in ipairs(targets) do
+                        local character = ctx.chars[index]
+                        character.offset_x = character.offset_x - drift
+                    end
                 end
             end
         end
     end
 
-    -- Now close the leading: each line moves toward the block centre by the same
-    -- factor the glyphs shrank, so the block scales as a whole instead of only
-    -- tightening within each line.
-    if blockBefore ~= nil and textScale < 1.0 then
+    -- Now scale the leading: each line moves toward or away from the block centre
+    -- by the same factor the glyphs took, so the block scales as a whole instead
+    -- of only tightening within each line. This runs above 1 as well -- the pop
+    -- overshoots past full size, and skipping it there would hold the lines at
+    -- their settled spacing while the balloon around them kept swelling.
+    if blockBefore ~= nil then
         for _, line in ipairs(mt.layout.group_by_line(ctx)) do
             local targets = {}
             for _, character in ipairs(line.items) do
@@ -725,7 +780,28 @@ function OnLayout(ctx)
     -- grows into place and settles flush against the text.
     balloonHalfWidthUnits = halfWidthEm * kUnitsPerEm
     balloonHalfHeightUnits = halfHeightEm * kUnitsPerEm
-    balloonCornerRadiusUnits = kCornerRadiusEm * kUnitsPerEm
+    balloonCornerRadiusUnits = lerpThroughMiddle(
+        kMinimumCornerRadiusEm, kDefaultCornerRadiusEm, kMaximumCornerRadiusEm,
+        balloonRoundness) * kUnitsPerEm
+
+    -- Scale the balloon about the same edge the text holds. Both shrink during
+    -- the pop, but the text pivots on its alignment margin while the balloon
+    -- pivots on its own centre, so under left or right alignment the two move
+    -- opposite ways and the text escapes the shape while it is still small.
+    -- Offsetting the placement by the width the scale removes keeps that edge
+    -- fixed for the balloon too.
+    -- Hold the same edge the text holds. The balloon otherwise scales about its
+    -- own centre while the text pivots on its alignment margin, so under left or
+    -- right alignment the two move opposite ways and the text escapes the shape
+    -- while it is still small.
+    local halfWidthCanvas = balloonHalfWidthUnits / kUnitsPerEm * emToCanvasX
+    local edgeShift = halfWidthCanvas * (1.0 - balloonScale)
+    local placeX = centerX
+    if horizontalAlignment == "left" then
+        placeX = centerX - edgeShift
+    elseif horizontalAlignment == "right" then
+        placeX = centerX + edgeShift
+    end
 
     -- Body and tail are drawn in the same part-local space, so they share one
     -- placement, scale and palette to stay attached. place_2d anchors a
@@ -733,7 +809,7 @@ function OnLayout(ctx)
     -- so no extra centering offset is needed.
     local balloonOpacity = mt.saturate(popProgress * 3.0) * outroScale
     for _, character in ipairs({ balloonCharacter, tailCharacter }) do
-        mt.layout.place_2d(ctx, character, centerX, centerY)
+        mt.layout.place_2d(ctx, character, placeX, centerY)
         character.scale = balloonScale
         character.opacity = balloonOpacity
         character.fill.use = true
