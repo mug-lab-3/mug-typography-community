@@ -4,7 +4,7 @@
 -- @duration 5.0
 -- @title Dialogue Window
 -- @author Mug
--- @version 1.1
+-- @version 1.2
 -- @input number 1 "Window Width" default=0.84
 -- @input number 2 "Window Height" default=0.27
 -- @input number 3 "Icon Area Ratio" default=0.155
@@ -202,12 +202,13 @@ local MARKER_BOB_FALL_RATIO = 0.42
 -- anything at or above this is on rather than rounding to the nearest.
 local MARKER_ENABLED_THRESHOLD = 0.5
 
--- Pause between the text finishing and the marker appearing.
+-- Pause between the text finishing and the marker appearing, counted in
+-- characters so it keeps pace with the typing speed.
 --
--- Fixed rather than measured in characters: a character-based pause scales
--- inversely with Speed, so it reads as simultaneous when fast and as a
--- stall when slow.
-local MARKER_PAUSE_SECONDS = 0.3
+-- With no per-character timing to measure it against -- a Speed of zero or
+-- less, or no body text at all -- there is nothing to wait for and the marker
+-- appears with the text.
+local MARKER_PAUSE_CHARACTERS = 1.0
 
 ------------------------------------------------------------
 -- Text area
@@ -696,9 +697,11 @@ local function showMarkerAt(ctx, revealTime)
     -- in_quad drop that accelerates, then a longer out_sine return, which
     -- reads as a press rather than a drift.
     --
-    -- The phase is measured from the moment it appears. Using ctx.time
-    -- directly would have it show up partway through the cycle.
-    local phase = mt.cycle(ctx.time - revealTime, MARKER_BOB_PERIOD)
+    -- The phase is measured from the moment it appears, offset to the bottom of
+    -- the cycle so the marker drops into view already pressed down and rises
+    -- from there. Using ctx.time directly would start it at whatever height the
+    -- clip time happened to land on.
+    local phase = mt.cycle(ctx.time - revealTime + MARKER_BOB_PERIOD * MARKER_BOB_FALL_RATIO, MARKER_BOB_PERIOD)
     local descent
 
     if phase < MARKER_BOB_FALL_RATIO then
@@ -1047,12 +1050,12 @@ function OnLayout(ctx)
 
     local showMarker = ctx.inputs.numbers[10] >= MARKER_ENABLED_THRESHOLD
 
-    -- With no body text there is nothing to wait for after the delay, so the
-    -- marker takes the same pause it would have taken otherwise. It rests at
-    -- its base position here rather than bobbing, since there is no dialogue
-    -- to invite the reader through.
+    -- With no body text there is nothing to type and so nothing to wait for:
+    -- the marker appears as soon as the delay is up. It rests at its base
+    -- position here rather than bobbing, since there is no dialogue to invite
+    -- the reader through.
     if ctx.char_count < FIRST_TEXT_CHARACTER then
-        local emptyTextDelay = math.max(ctx.inputs.numbers[8], 0.0) + MARKER_PAUSE_SECONDS
+        local emptyTextDelay = math.max(ctx.inputs.numbers[8], 0.0)
 
         if showMarker and ctx.time >= emptyTextDelay then
             local marker = ctx.chars[MARKER_CHARACTER]
@@ -1079,17 +1082,19 @@ function OnLayout(ctx)
 
     alignBodyText(ctx, placedCharacters, usedLineCount, lineAdvance)
 
-    -- The marker appears a fixed pause after the whole text is out. The time
-    -- the text finishes follows from Speed, since the number of characters it
-    -- can show is settled by this point.
+    -- The marker appears a beat after the whole text is out, timed as if a few
+    -- more characters were still to come. The number of characters the text
+    -- can show is settled by this point, so the moment follows from Speed.
     if showMarker then
-        local textFinishedTime = typingDelay
+        local revealTime = typingDelay
 
+        -- Without a per-character reveal the whole text is already out, so the
+        -- pause has no character to measure itself against and is skipped.
         if typingSpeed > 0.0 then
-            textFinishedTime = typingDelay + shownCharacterCount / typingSpeed
+            revealTime = typingDelay + (shownCharacterCount + MARKER_PAUSE_CHARACTERS) / typingSpeed
         end
 
-        showMarkerAt(ctx, textFinishedTime + MARKER_PAUSE_SECONDS)
+        showMarkerAt(ctx, revealTime)
     end
 end
 
