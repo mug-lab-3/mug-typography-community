@@ -4,7 +4,7 @@
 -- @duration 5.0
 -- @title Dialogue Window
 -- @author Mug
--- @version 1.0
+-- @version 1.1
 -- @input number 1 "Window Width" default=0.84
 -- @input number 2 "Window Height" default=0.27
 -- @input number 3 "Icon Area Ratio" default=0.155
@@ -1032,6 +1032,15 @@ function OnLayout(ctx)
         return
     end
 
+    -- The window is held behind everything by manual order, but in 3D each
+    -- part is painted by its view depth and manual order only breaks ties, so
+    -- any yaw or pitch would swing the text through the panel it sits in.
+    -- Giving the window depth of its own is no fix either: the same
+    -- perspective that separates it also shifts and shrinks it away from the
+    -- text area it was measured against. This effect is 2D by contract.
+    ctx.output.manual_order_text = "c1"
+    ctx.output.force_disable_3d_projection = true
+
     layoutWindow(ctx)
     layoutIcon(ctx)
     prepareMarker(ctx)
@@ -1050,8 +1059,6 @@ function OnLayout(ctx)
             mt.layout.place_2d(ctx, marker, markerX + uiOffsetX, markerY + uiOffsetY)
             marker.opacity = 1.0
         end
-
-        ctx.output.manual_order_text = "c1"
 
         return
     end
@@ -1084,8 +1091,6 @@ function OnLayout(ctx)
 
         showMarkerAt(ctx, textFinishedTime + MARKER_PAUSE_SECONDS)
     end
-
-    ctx.output.manual_order_text = "c1"
 end
 
 ------------------------------------------------------------
