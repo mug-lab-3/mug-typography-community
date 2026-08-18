@@ -4,7 +4,7 @@
 -- @duration 5.0
 -- @title Dialogue Window
 -- @author Mug
--- @version 1.2
+-- @version 1.5
 -- @input number 1 "Window Width" default=0.84
 -- @input number 2 "Window Height" default=0.27
 -- @input number 3 "Icon Area Ratio" default=0.155
@@ -18,17 +18,21 @@
 -- @input color 1 "Window Color" default={0.035, 0.045, 0.075, 0.96}
 -- @input color 2 "Icon Color" default={0.95, 0.96, 1.0, 1.0}
 -- @input color 3 "Marker Color" default={0.95, 0.96, 1.0, 1.0}
--- @input text 1 "Icon SVG" default="M4.5 9.5C5.88 9.5 7 8.38 7 7S5.88 4.5 4.5 4.5 2 5.62 2 7s1.12 2.5 2.5 2.5zM9 6c1.38 0 2.5-1.12 2.5-2.5S10.38 1 9 1 6.5 2.12 6.5 3.5 7.62 6 9 6zM15 6c1.38 0 2.5-1.12 2.5-2.5S16.38 1 15 1s-2.5 1.12-2.5 2.5S13.62 6 15 6zM19.5 9.5C20.88 9.5 22 8.38 22 7s-1.12-2.5-2.5-2.5S17 5.62 17 7s1.12 2.5 2.5 2.5zM17.34 14.86c-.87-1.02-1.6-1.89-2.48-2.91-.46-.54-1.05-1.08-1.75-1.32-.11-.04-.22-.07-.33-.09-.57-.12-1.17-.12-1.74 0-.11.02-.22.05-.33.09-.7.24-1.28.78-1.75 1.32-.87 1.02-1.6 1.89-2.48 2.91-1.31 1.31-2.92 2.76-2.62 4.79.29 1.02 1.02 2.03 2.33 2.32.73.15 3.06-.44 5.54-.44h.36c2.48 0 4.81.58 5.54.441.31-.29 2.04-1.31 2.33-2.32.3-2.03-1.31-3.48-2.62-4.79z"
+-- @input text 1 "Icon SVG" default="<svg viewBox='0 0 24 24'><circle cx='9' cy='13' r='1.25'/><circle cx='15' cy='13' r='1.25'/><path d='M22.91 11.96C22.39 6.32 17.66 2 12 2S1.61 6.32 1.09 11.96l-.9 9.86c-.1 1.17.82 2.18 2 2.18h19.62c1.18 0 2.1-1.01 1.99-2.18l-.89-9.86zM13 4.07c2.26.28 4.22 1.51 5.49 3.28-.58.4-1.26.65-1.99.65C14.57 8 13 6.43 13 4.5v-.43zm-2 0v.43C11 6.43 9.43 8 7.5 8c-.73 0-1.41-.25-1.99-.65 1.27-1.77 3.23-3 5.49-3.28zM4.54 9.13c.87.55 1.89.87 2.96.87 1.86 0 3.5-.93 4.5-2.35C13 9.07 14.64 10 16.5 10c1.07 0 2.09-.32 2.96-.87.34.89.54 1.86.54 2.87 0 4.41-3.59 8-8 8s-8-3.59-8-8c0-1.01.2-1.98.54-2.87zM12 22H2.19l.56-6.2C4.25 19.44 7.82 22 12 22s7.75-2.56 9.25-6.2l.56 6.2H12z'/></svg>"
+-- @input text 2 "Marker SVG" default="M4 7L12 20L20 7z"
 --[[ @description
 A game-style dialogue window: the text types itself out inside a rounded
 panel, with a speaker icon on the left and a bobbing marker that appears
 once the line is finished.
 
-Icon SVG:
-    Open an SVG file in a text editor, copy the whole contents and paste
-    them into the field. Pasting just the contents of a d attribute works
-    too. Clearing the field leaves the icon out, and an X is drawn when the
-    text cannot be read. Elliptical arcs (A/a commands) are not supported.
+Icon SVG / Marker SVG:
+    The speaker icon and the advance marker are both drawn from these
+    fields. Open an SVG file in a text editor, copy the whole contents and
+    paste them in. Pasting just the contents of a d attribute works too.
+    Clearing a field leaves that shape out.
+
+    Elliptical arc commands (A/a) are not supported; an icon using them
+    shows an X instead.
 
 Beyond that, several of the standard inspector settings drive this effect:
 
@@ -68,11 +72,14 @@ Tracking and Line Spacing behave as usual and are folded into the wrap.
 表示され、左に話者アイコン、本文を出し切ると右下に会話送りの▼が現れて
 上下に揺れます。
 
-Icon SVG:
+Icon SVG / Marker SVG:
+    話者アイコンと会話送りマーカーは、どちらもこの欄の内容で描かれます。
     SVGファイルをテキストエディタで開き、中身を全部コピーして貼り付けます。
-    d属性の中身だけを貼り付けても構いません。空欄にするとアイコンなしに
-    なり、読み取れない場合は✗が表示されます。楕円弧（A/aコマンド）には
-    対応していません。
+    d属性の中身だけを貼り付けても構いません。空欄にするとその図形は
+    描かれなくなります。
+
+    楕円弧コマンド（A/a）には対応していません。使用しているアイコンは
+    ✗が表示されます。
 
 上記のほかに、通常のInspector設定も効きます。
 
@@ -314,16 +321,154 @@ local errorIcon = mt.svg_path(
 -- silently dropped, so they have to be detected here before drawing.
 local UNSUPPORTED_PATH_COMMAND = "[Aa]"
 
--- The resolved path and the text it came from, so the SVG is only parsed
--- again when the input changes.
+-- One cache per SVG input, holding the resolved path and the text it came
+-- from, so each is only parsed again when its own field changes.
 --
--- The source starts as a sentinel no input can produce, which forces the
+-- Each source starts as a sentinel no input can produce, which forces the
 -- first resolve.
-local resolvedIconPath = emptyIcon
-local resolvedIconSource = "\0"
-local iconLoadFailed = false
+local iconCache = { path = emptyIcon, source = "\0", label = "Icon SVG" }
+local markerCache = { path = emptyIcon, source = "\0", label = "Marker SVG" }
 
----Pulls the viewBox and every path's `d` out of raw SVG markup.
+-- Control point offset that turns a quarter ellipse into a cubic bezier.
+local ELLIPSE_CONTROL_RATIO = 0.5523
+
+---Draws an ellipse as path data, wound clockwise in SVG's Y-down space, which
+---is the direction icons use for the shapes they cut out. Filling is non-zero,
+---so this is what makes a round detail read as a hole rather than a dot: the
+---eyes of a face icon are cut out of it.
+---@param centerX number
+---@param centerY number
+---@param radiusX number
+---@param radiusY number
+---@return string path data
+local function ellipseToPathData(centerX, centerY, radiusX, radiusY)
+    local controlX = radiusX * ELLIPSE_CONTROL_RATIO
+    local controlY = radiusY * ELLIPSE_CONTROL_RATIO
+    return string.format(
+        "M%f %fC%f %f %f %f %f %fC%f %f %f %f %f %fC%f %f %f %f %f %fC%f %f %f %f %f %fz",
+        centerX,
+        centerY - radiusY,
+        centerX + controlX,
+        centerY - radiusY,
+        centerX + radiusX,
+        centerY - controlY,
+        centerX + radiusX,
+        centerY,
+        centerX + radiusX,
+        centerY + controlY,
+        centerX + controlX,
+        centerY + radiusY,
+        centerX,
+        centerY + radiusY,
+        centerX - controlX,
+        centerY + radiusY,
+        centerX - radiusX,
+        centerY + controlY,
+        centerX - radiusX,
+        centerY,
+        centerX - radiusX,
+        centerY - controlY,
+        centerX - controlX,
+        centerY - radiusY,
+        centerX,
+        centerY - radiusY
+    )
+end
+
+---Draws a rectangle as path data, rounding its corners when rx or ry is given.
+---Wound to match ellipseToPathData, so the two cut holes the same way.
+---@param x number
+---@param y number
+---@param width number
+---@param height number
+---@param radiusX number corner radius, already clamped to half the width
+---@param radiusY number corner radius, already clamped to half the height
+---@return string path data
+local function rectangleToPathData(x, y, width, height, radiusX, radiusY)
+    local right = x + width
+    local bottom = y + height
+
+    if radiusX <= 0.0 or radiusY <= 0.0 then
+        return string.format("M%f %fL%f %fL%f %fL%f %fz", x, y, right, y, right, bottom, x, bottom)
+    end
+
+    local controlX = radiusX * ELLIPSE_CONTROL_RATIO
+    local controlY = radiusY * ELLIPSE_CONTROL_RATIO
+    return string.format(
+        "M%f %fL%f %fC%f %f %f %f %f %fL%f %fC%f %f %f %f %f %fL%f %fC%f %f %f %f %f %fL%f %fC%f %f %f %f %f %fz",
+        x + radiusX,
+        y,
+        right - radiusX,
+        y,
+        right - radiusX + controlX,
+        y,
+        right,
+        y + radiusY - controlY,
+        right,
+        y + radiusY,
+        right,
+        bottom - radiusY,
+        right,
+        bottom - radiusY + controlY,
+        right - radiusX + controlX,
+        bottom,
+        right - radiusX,
+        bottom,
+        x + radiusX,
+        bottom,
+        x + radiusX - controlX,
+        bottom,
+        x,
+        bottom - radiusY + controlY,
+        x,
+        bottom - radiusY,
+        x,
+        y + radiusY,
+        x,
+        y + radiusY - controlY,
+        x + radiusX - controlX,
+        y,
+        x + radiusX,
+        y
+    )
+end
+
+---Turns a `points` list into path data.
+---@param points string raw attribute text
+---@param close boolean whether to close the figure, as <polygon> does
+---@return string|nil path data, or nil when there are too few points
+local function pointsToPathData(points, close)
+    local coordinates = {}
+
+    for value in points:gmatch("[-+%d%.eE]+") do
+        coordinates[#coordinates + 1] = tonumber(value)
+    end
+
+    local result = nil
+
+    if #coordinates >= 4 then
+        local commands = {}
+
+        for i = 1, #coordinates - 1, 2 do
+            commands[#commands + 1] =
+                string.format("%s%f %f", #commands == 0 and "M" or "L", coordinates[i], coordinates[i + 1])
+        end
+
+        result = table.concat(commands) .. (close and "z" or "")
+    end
+
+    return result
+end
+
+---Reads one numeric attribute from an element's attribute text.
+---@param attributes string
+---@param name string
+---@return number|nil
+local function readNumberAttribute(attributes, name)
+    local value = attributes:match(name .. '%s*=%s*"([^"]*)"') or attributes:match(name .. "%s*=%s*'([^']*)'")
+    return value and tonumber(value) or nil
+end
+
 ---Accepts a whole `<svg>` document or a bare `d` string.
 ---@param source string|nil raw text from the inspector
 ---@return table|nil parsed `{ d = string, viewBox = number[]|nil }`
@@ -354,16 +499,74 @@ local function parseSvgSource(source)
                 end
             end
 
-            -- Concatenate every <path d="..."> in document order, so a
-            -- multi-path icon becomes one shape.
+            -- Walk the elements in document order so a multi-part icon becomes
+            -- one shape. <circle> is turned into path data rather than
+            -- skipped: Material Icons draws small round details that way, and
+            -- dropping them leaves holes in the icon -- literally, in the case
+            -- of a face's eyes.
+            --
+            -- SVG defines an exact path equivalent for each basic shape, so
+            -- they are converted rather than skipped and any icon drawn from
+            -- them reads the same as one drawn from <path>.
             local pathData = {}
 
-            for d in source:gmatch('<path[^>]-%sd%s*=%s*"([^"]*)"') do
-                pathData[#pathData + 1] = d
-            end
+            for element, attributes in source:gmatch("<(%a+)([^>]*)>") do
+                local converted = nil
 
-            for d in source:gmatch("<path[^>]-%sd%s*=%s*'([^']*)'") do
-                pathData[#pathData + 1] = d
+                if element == "path" then
+                    converted = attributes:match('%sd%s*=%s*"([^"]*)"') or attributes:match("%sd%s*=%s*'([^']*)'")
+                elseif element == "circle" or element == "ellipse" then
+                    local centerX = readNumberAttribute(attributes, "cx") or 0.0
+                    local centerY = readNumberAttribute(attributes, "cy") or 0.0
+                    local radiusX = readNumberAttribute(attributes, element == "circle" and "r" or "rx")
+                    local radiusY = element == "circle" and radiusX or readNumberAttribute(attributes, "ry")
+
+                    if radiusX ~= nil and radiusY ~= nil and radiusX > 0.0 and radiusY > 0.0 then
+                        converted = ellipseToPathData(centerX, centerY, radiusX, radiusY)
+                    end
+                elseif element == "rect" then
+                    local width = readNumberAttribute(attributes, "width")
+                    local height = readNumberAttribute(attributes, "height")
+
+                    if width ~= nil and height ~= nil and width > 0.0 and height > 0.0 then
+                        -- Either radius alone stands in for the other, and each
+                        -- is capped at half its own side, as SVG specifies.
+                        local radiusX = readNumberAttribute(attributes, "rx")
+                        local radiusY = readNumberAttribute(attributes, "ry")
+                        radiusX = radiusX or radiusY or 0.0
+                        radiusY = radiusY or radiusX
+
+                        converted = rectangleToPathData(
+                            readNumberAttribute(attributes, "x") or 0.0,
+                            readNumberAttribute(attributes, "y") or 0.0,
+                            width,
+                            height,
+                            math.min(radiusX, width * 0.5),
+                            math.min(radiusY, height * 0.5)
+                        )
+                    end
+                elseif element == "polygon" or element == "polyline" then
+                    local points = attributes:match('points%s*=%s*"([^"]*)"')
+                        or attributes:match("points%s*=%s*'([^']*)'")
+
+                    if points then
+                        converted = pointsToPathData(points, element == "polygon")
+                    end
+                elseif element == "line" then
+                    -- No area to fill, but it still belongs to the outline a
+                    -- stroke would follow.
+                    converted = string.format(
+                        "M%f %fL%f %f",
+                        readNumberAttribute(attributes, "x1") or 0.0,
+                        readNumberAttribute(attributes, "y1") or 0.0,
+                        readNumberAttribute(attributes, "x2") or 0.0,
+                        readNumberAttribute(attributes, "y2") or 0.0
+                    )
+                end
+
+                if converted then
+                    pathData[#pathData + 1] = converted
+                end
             end
 
             if #pathData > 0 then
@@ -378,60 +581,51 @@ local function parseSvgSource(source)
     return result
 end
 
----Chooses the icon path for the current inspector text.
----Falls back to no icon when empty, and to the error icon when the text
----cannot be turned into a usable outline.
+---Chooses the path for one of the SVG inputs.
+---Falls back to `emptyPath` when the field is blank, and to the error icon
+---when the text cannot be turned into a usable outline.
+---@param cache table per-input cache holding the last result and its source
 ---@param source string|nil raw text from the inspector
+---@param emptyPath MtDrawingPath what a blank field draws
 ---@return MtDrawingPath path template to declare
-local function resolveIconPath(source)
+local function resolveSvgInput(cache, source, emptyPath)
     local sourceText = source or ""
 
     -- Reuse the previous result for the same text: mt.svg_path re-parses on
     -- every call, so it is not worth rebuilding each frame.
-    if sourceText ~= resolvedIconSource then
-        resolvedIconSource = sourceText
-        iconLoadFailed = false
+    if sourceText ~= cache.source then
+        cache.source = sourceText
+        local failed = false
         local trimmed = sourceText:match("^%s*(.-)%s*$")
 
         if trimmed == "" then
-            resolvedIconPath = emptyIcon
+            cache.path = emptyPath
         else
             local parsed = parseSvgSource(trimmed)
 
             if parsed == nil then
-                iconLoadFailed = true
+                failed = true
             elseif parsed.d:match(UNSUPPORTED_PATH_COMMAND) then
                 -- Arcs are dropped and the shape comes out mangled, so treat
                 -- them as a failure rather than draw a distorted icon.
-                print("Icon SVG uses arc commands (A/a), which are not supported.")
-                iconLoadFailed = true
+                print(cache.label .. " uses arc commands (A/a), which are not supported.")
+                failed = true
             else
-                resolvedIconPath = mt.svg_path(parsed.d, {
+                cache.path = mt.svg_path(parsed.d, {
                     view_box = parsed.viewBox or { 0, 0, 24, 24 },
                     em_scale = 0.9,
                 })
             end
         end
 
-        if iconLoadFailed then
-            print("Icon SVG could not be read.")
-            resolvedIconPath = errorIcon
+        if failed then
+            print(cache.label .. " could not be read.")
+            cache.path = errorIcon
         end
     end
 
-    return resolvedIconPath
+    return cache.path
 end
-
-------------------------------------------------------------
--- Advance marker glyph
---
--- A downward triangle filling a 24x24 viewBox.
-------------------------------------------------------------
-
-local advanceMarker = mt.svg_path("M4 7h16L12 20z", {
-    view_box = { 0, 0, 24, 24 },
-    em_scale = 0.9,
-})
 
 ------------------------------------------------------------
 -- Rounded window
@@ -583,14 +777,16 @@ function OnPreLayout(ctx)
         bounds = { 0, 0, 0, 0 },
     })
 
-    -- Uses the SVG pasted into the inspector when there is one.
+    -- Both shapes come from the inspector, so either can be replaced without
+    -- touching the script. A blank icon field draws nothing; a blank marker
+    -- field leaves the advance marker out the same way Show Marker does.
     local iconGlyph = ctx.glyphs:declare({
-        path = resolveIconPath(ctx.inputs.texts[1]),
+        path = resolveSvgInput(iconCache, ctx.inputs.texts[1], emptyIcon),
         bounds = { 0, 0, 0, 0 },
     })
 
     local markerGlyph = ctx.glyphs:declare({
-        path = advanceMarker,
+        path = resolveSvgInput(markerCache, ctx.inputs.texts[2], emptyIcon),
         bounds = { 0, 0, 0, 0 },
     })
 
