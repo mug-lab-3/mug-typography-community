@@ -5,12 +5,12 @@
     "title": "Little Letter Movers",
     "description": "Little workers push letters into place one by one, then return to clear them away.",
     "author": "mug-lab-3",
-    "version": "3.10",
+    "version": "3.12",
     "apiLevel": 13,
     "thumbnailPath": "gallery/mug-lab-3/little-letter-movers/thumbnail.webp",
     "videoPath": "gallery/mug-lab-3/little-letter-movers/preview.webm",
-    "sourceUrl": "https://github.com/mug-lab-3/mug-typography-community/issues/40",
-    "publishedAt": "2026-11-02T17:15:11.764Z"
+    "sourceUrl": "https://github.com/mug-lab-3/mug-typography-community/issues/43",
+    "publishedAt": "2026-11-02T18:12:57.611Z"
   },
   {
     "name": "analog-clock.lua",
