@@ -1,7 +1,7 @@
 -- @MugTypography
 -- @title Little Letter Movers
 -- @duration 8
--- @version 3.10
+-- @version 3.12
 -- @api_level 13
 -- @input number 1 "Stagger seconds" default=0.35
 -- @input number 2 "Travel seconds" default=1.6
@@ -29,6 +29,7 @@ Little workers push letters into place one by one, then return to clear them awa
 -- 5 Faceted, 6 Stained Glass, 7 Metallic, 8 Metallic 2.
 local materials = {"none", "water_droplet", "air_cushion", "glitter", "iridescent", "faceted", "stained_glass", "metallic", "metallic_2"}
 local ids = {}
+local planeCamera, planeRoot
 local body = mt.svg_path("M -43 -100 C -43 -135 43 -135 43 -100 L 43 30 C 43 50 -43 50 -43 30 Z")
 local head = mt.svg_path("M -55 -180 C -55 -250 55 -250 55 -180 C 55 -110 -55 -110 -55 -180 Z")
 -- Draw a tapered limb from joint to endpoint in path coordinates.
@@ -47,14 +48,25 @@ function OnPreLayout(ctx)
     -- Character count is available only after layout.  Before layout, reserve
     -- enough slots for the input's Unicode code points, within host limits.
     ids = {}
+    planeCamera = ctx.shape_cameras:declare()
+    planeRoot = ctx.shapes:declare({camera=planeCamera})
     local count = utf8.len(ctx.global.text) or #ctx.global.text
-    local capacity = math.floor(ctx.meta.limits.max_shapes / 4)
+    local capacity = math.floor(math.max(0, ctx.meta.limits.max_shapes - 1) / 4)
     local reserve = math.min(count, ctx.meta.limits.max_characters, capacity)
     for i = 1, reserve do
-        ids[i] = {body=ctx.shapes:declare({path=body,layer="front"}), legs=ctx.shapes:declare({layer="front"}), arm=ctx.shapes:declare({layer="front"}), head=ctx.shapes:declare({path=head,layer="front"})}
+        ids[i] = {body=ctx.shapes:declare({path=body,layer="front",parent=planeRoot}), legs=ctx.shapes:declare({layer="front",parent=planeRoot}), arm=ctx.shapes:declare({layer="front",parent=planeRoot}), head=ctx.shapes:declare({path=head,layer="front",parent=planeRoot})}
     end
 end
 function OnLayout(ctx)
+    local view = ctx.shape_cameras[planeCamera]
+    view.target_x, view.target_y = ctx.camera.target_x, ctx.camera.target_y
+    view.yaw, view.pitch = ctx.camera.yaw, ctx.camera.pitch
+    view.perspective, view.zoom = ctx.camera.perspective, ctx.camera.zoom
+    view.lens_shift_x, view.lens_shift_y = ctx.camera.lens_shift_x, ctx.camera.lens_shift_y
+    local root = ctx.shapes[planeRoot]
+    root.offset_x, root.offset_y = ctx.global.position_x, ctx.global.position_y
+    root.pivot_x, root.pivot_y = ctx.global.pivot_x, ctx.global.pivot_y
+    root.yaw, root.pitch, root.rotation = ctx.global.yaw, ctx.global.pitch, ctx.global.rotation
     local stagger = mt.clamp(ctx.inputs.numbers[1], 0.05, 2.0)
     local travel = mt.clamp(ctx.inputs.numbers[2], 0.4, 5.0)
     local size = mt.clamp(ctx.inputs.numbers[3], 0.3, 3.0)
@@ -95,7 +107,7 @@ function OnLayout(ctx)
                 c.rotation = c.rotation + 5 * math.exp(-5 * settleRotation) * math.sin(settleRotation * 18)
             end
             local settle = math.max(0, t - travel)
-            local b = mt.layout.measure_bounds_2d(ctx, {i}, "character")
+            local b = mt.layout.measure_bounds_2d(ctx, {i}, "character", "before_global_rotation")
             if b then
                 local returning = math.max(0, t - travel - 0.35)
                 local visible = mt.saturate(t / 0.12)
@@ -113,7 +125,7 @@ function OnLayout(ctx)
                 local bob = walking and math.abs(walk) * h * 0.03 or 0
                 local y = b.bottom + h * 0.13 + bob
                 for _, shape in ipairs(all) do
-                    shape.offset_x, shape.offset_y = x, y
+                    shape.offset_x, shape.offset_y = 0.5 + x - ctx.global.position_x, 0.5 + y - ctx.global.position_y
                     shape.scale = scale
                     shape.stretch_x = flip
                     shape.fill.use = true
