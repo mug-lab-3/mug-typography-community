@@ -3,8 +3,8 @@
   "description": "Little workers push letters into place one by one, then return to clear them away.",
   "author": "mug-lab-3",
   "submitter": "mug-lab-3",
-  "version": "3.12",
-  "apiLevel": 13,
-  "sourceUrl": "https://github.com/mug-lab-3/mug-typography-community/issues/43",
-  "publishedAt": "2026-11-02T18:12:57.611Z"
+  "version": "4.0",
+  "apiLevel": 15,
+  "sourceUrl": "https://github.com/mug-lab-3/mug-typography-community/issues/45",
+  "publishedAt": "2026-11-17T13:49:17.478Z"
 }
